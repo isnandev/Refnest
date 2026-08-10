@@ -1,0 +1,21 @@
+{
+  "name": "@starter/server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/main.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@effect/platform": "^0.97.1",
+    "@effect/platform-bun": "^0.91.2",
+    "@starter/contracts": "workspace:*",
+    "effect": "^3.22.1"
+  },
+  "devDependencies": {
+    "@effect/vitest": "^0.30.0",
+    "vitest": "^4.1.10"
+  }
+}

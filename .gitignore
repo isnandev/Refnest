@@ -1,0 +1,11 @@
+node_modules/
+dist/
+target/
+
+# Compiled Bun sidecar, produced by `bun run sidecar:build`
+apps/desktop/src-tauri/binaries/
+
+*.log
+.DS_Store
+.env
+.env.local

@@ -1,0 +1,22 @@
+{
+  "name": "@starter/contracts",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./handshake": "./src/handshake.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@effect/platform": "^0.97.1",
+    "effect": "^3.22.1"
+  },
+  "devDependencies": {
+    "@effect/vitest": "^0.30.0",
+    "vitest": "^4.1.10"
+  }
+}

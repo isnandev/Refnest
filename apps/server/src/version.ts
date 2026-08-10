@@ -1,0 +1,9 @@
+/** Reported by `GET /health` so the shell and the UI can confirm which sidecar build is running. */
+export const SERVER_VERSION = "0.1.0"
+
+/**
+ * The sidecar always ships as a Bun binary, but the test runner is Node, so the
+ * label is read defensively instead of assuming the `Bun` global exists.
+ */
+export const RUNTIME_LABEL =
+  typeof Bun === "undefined" ? `node ${process.versions.node}` : `bun ${Bun.version}`

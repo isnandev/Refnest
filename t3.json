@@ -1,0 +1,33 @@
+{
+  "$schema": "https://t3.codes/schema/t3.json",
+  "scripts": [
+    {
+      "name": "Install dependencies",
+      "command": "bun install",
+      "icon": "configure",
+      "runOnWorktreeCreate": true
+    },
+    {
+      "name": "Dev stack",
+      "command": "bun run dev",
+      "icon": "play",
+      "previewUrl": "http://localhost:1420/",
+      "autoOpenPreview": true
+    },
+    {
+      "name": "Server dev",
+      "command": "bun run server:dev",
+      "icon": "debug"
+    },
+    {
+      "name": "Verify",
+      "command": "bun run typecheck && bun run test",
+      "icon": "test"
+    },
+    {
+      "name": "Build",
+      "command": "bun run build",
+      "icon": "build"
+    }
+  ]
+}
