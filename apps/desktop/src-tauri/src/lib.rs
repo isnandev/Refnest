@@ -7,12 +7,30 @@ use tauri::{Manager, RunEvent};
 use crate::proxy::ApiProxy;
 use crate::sidecar::Sidecar;
 
+/// Windows: the frameless shell blurs the desktop behind the window with an
+/// acrylic backdrop, falling back to mica on builds without system backdrop.
+#[cfg(target_os = "windows")]
+fn apply_vibrancy(app: &tauri::App) {
+    use window_vibrancy::{apply_acrylic, apply_mica};
+
+    if let Some(window) = app.get_webview_window("main") {
+        // The tint is kept near-zero so the app's own themed stage color
+        // (semi-transparent in CSS) provides the visible backdrop tint.
+        if apply_acrylic(&window, Some((0, 0, 0, 24))).is_err() {
+            let _ = apply_mica(&window, None);
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+            #[cfg(target_os = "windows")]
+            apply_vibrancy(app);
+
             app.manage(Sidecar::spawn(app.handle())?);
             app.manage(ApiProxy::new());
 

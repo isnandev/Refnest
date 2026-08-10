@@ -11,7 +11,7 @@
  * selection in a group — nothing else.
  */
 :root {
-  --stage: #ebebeb;
+  --stage: rgba(235, 235, 235, 0.78);
   --surface: #ffffff;
   --surface-muted: #fafafa;
   --surface-hover: #f3f3f3;
@@ -59,7 +59,7 @@
 
 [data-theme="dark"],
 .dark {
-  --stage: #0a0a0a;
+  --stage: rgba(10, 10, 10, 0.78);
   --surface: #161616;
   --surface-muted: #111111;
   --surface-hover: #1e1e1e;
@@ -158,8 +158,14 @@
     @apply border-border;
   }
 
+  html {
+    background-color: transparent;
+    overscroll-behavior: none;
+  }
+
   body {
     @apply bg-background text-foreground font-sans text-body-md antialiased;
+    overscroll-behavior: none;
   }
 
   /* Every interactive element gets the same 2px ring at 2px offset. */
