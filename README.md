@@ -69,7 +69,24 @@ Anything else on the machine that finds the port still gets a `401`.
 4. Add a hook under `apps/desktop/src/features/<feature>/` that calls the
    generated client through `appRuntime`, and keep the components render-only.
 
-The Rust shell does not change.
+The Rust shell does not change for domain features.
+
+## Settings storage
+
+Desktop preferences and resume state are stored by the Bun sidecar in a SQLite
+database named `settings.sqlite3`. The Rust shell resolves Tauri's app-local data
+directory and passes that exact path to Bun; it does not read or write the data.
+
+On Windows, the default location is:
+
+```text
+%LOCALAPPDATA%\studio.mavolo.tauri-effect-starter\settings.sqlite3
+```
+
+The saved document includes theme, sidebar appearance and width, the selected
+workspace, the last active page, and native window position, size, and maximized
+state. Window bounds are checked against currently connected monitors before they
+are restored.
 
 ## Design
 

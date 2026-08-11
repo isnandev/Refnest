@@ -11,7 +11,9 @@
  * selection in a group — nothing else.
  */
 :root {
-  --stage: rgba(235, 235, 235, 0.78);
+  color-scheme: light;
+
+  --stage: #ebebeb;
   --surface: #ffffff;
   --surface-muted: #fafafa;
   --surface-hover: #f3f3f3;
@@ -34,6 +36,14 @@
   --control-edge: #8e8e8e;
   --focus-ring: #111111;
   --primary-hover: #2a2a2a;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: color-mix(in srgb, var(--text-secondary) 45%, transparent);
+  --scrollbar-thumb-hover: color-mix(
+    in srgb,
+    var(--text-secondary) 70%,
+    transparent
+  );
+  --scrollbar-thumb-active: var(--text-secondary);
 
   /* shadcn/ui semantic slots, pointed at the tokens above. */
   --background: var(--stage);
@@ -59,7 +69,9 @@
 
 [data-theme="dark"],
 .dark {
-  --stage: rgba(10, 10, 10, 0.78);
+  color-scheme: dark;
+
+  --stage: #0a0a0a;
   --surface: #161616;
   --surface-muted: #111111;
   --surface-hover: #1e1e1e;
@@ -79,7 +91,6 @@
   --control-edge: #666666;
   --focus-ring: #a3e635;
   --primary-hover: #e0e0e0;
-
   --primary: var(--text-primary);
   --primary-foreground: #111111;
 }
@@ -159,13 +170,57 @@
   }
 
   html {
+    height: 100%;
     background-color: transparent;
     overscroll-behavior: none;
+    scroll-behavior: smooth;
   }
 
   body {
-    @apply bg-background text-foreground font-sans text-body-md antialiased;
+    @apply text-foreground font-sans text-body-md antialiased;
+    height: 100%;
+    overflow: hidden;
     overscroll-behavior: none;
+  }
+
+  #root {
+    height: 100%;
+  }
+
+  #main-content {
+    scrollbar-gutter: stable;
+  }
+
+  #main-content::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  #main-content::-webkit-scrollbar-track,
+  #main-content::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
+  }
+
+  #main-content::-webkit-scrollbar-thumb {
+    min-height: 40px;
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background-color: var(--scrollbar-thumb);
+    background-clip: padding-box;
+  }
+
+  #main-content::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  #main-content::-webkit-scrollbar-thumb:active {
+    background-color: var(--scrollbar-thumb-active);
+  }
+
+  #main-content::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   /* Every interactive element gets the same 2px ring at 2px offset. */
@@ -179,7 +234,61 @@
   }
 }
 
+[cmdk-overlay] {
+  @apply fixed inset-0 z-50 bg-black/35;
+}
+
+.sidebar-surface {
+  background-color: color-mix(
+    in srgb,
+    var(--stage) var(--sidebar-opacity, 60%),
+    transparent
+  );
+}
+
+.workspace-folder-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.workspace-folder-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.workspace-folder-scroll::-webkit-scrollbar-thumb {
+  min-height: 32px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  background-color: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+.workspace-folder-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+.workspace-folder-scroll::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+[data-reduced-motion="true"] {
+  scroll-behavior: auto;
+}
+
+[data-reduced-motion="true"] *,
+[data-reduced-motion="true"] *::before,
+[data-reduced-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   *,
   *::before,
   *::after {

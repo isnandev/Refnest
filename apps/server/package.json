@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "bun run --watch src/main.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run --exclude 'test-bun/**' && bun test test-bun"
   },
   "dependencies": {
     "@effect/platform": "^0.97.1",

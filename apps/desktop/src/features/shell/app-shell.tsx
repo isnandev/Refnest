@@ -1,31 +1,80 @@
+import type { Workspace } from "@starter/contracts"
 import type { ReactNode } from "react"
 
+import type { WorkspacesState } from "@/features/workspaces/use-workspaces"
 import { cn } from "@/lib/utils"
 import { Sidebar } from "./sidebar"
-import { SIDEBAR, useSidebar } from "./use-sidebar"
+import type { AppSection } from "./use-app-view"
+import {
+  SIDEBAR,
+  useSidebar,
+  type SidebarPreferences
+} from "./use-sidebar"
 
 /**
  * Two-pane app shell: collapsible sidebar on the left, content on the right,
  * separated by a draggable divider. Fills the available window area.
  */
-export function AppShell({ children }: { children: ReactNode }) {
-  const sidebar = useSidebar()
+export function AppShell({
+  activeSection,
+  autoCollapseSidebar,
+  sidebarBackgroundOpacity,
+  sidebarWidth,
+  sidebarCollapsed,
+  settingsReady,
+  workspaceState,
+  selectedWorkspace,
+  onSelectWorkspace,
+  onOpenCommandMenu,
+  onCreateWorkspace,
+  onSidebarPreferencesChange,
+  header,
+  children
+}: {
+  activeSection: AppSection
+  autoCollapseSidebar: boolean
+  sidebarBackgroundOpacity: number
+  sidebarWidth: number
+  sidebarCollapsed: boolean
+  settingsReady: boolean
+  workspaceState: WorkspacesState
+  selectedWorkspace: Workspace | null
+  onSelectWorkspace: (workspace: Workspace) => void
+  onOpenCommandMenu: () => void
+  onCreateWorkspace: () => void
+  onSidebarPreferencesChange: (preferences: SidebarPreferences) => void
+  header: ReactNode
+  children: ReactNode
+}) {
+  const sidebar = useSidebar(
+    autoCollapseSidebar,
+    { width: sidebarWidth, collapsed: sidebarCollapsed },
+    settingsReady,
+    onSidebarPreferencesChange
+  )
 
   return (
     <div
       className={cn(
-        "flex min-h-0 flex-1",
+        "flex h-full min-h-0",
         sidebar.dragging && "cursor-col-resize select-none"
       )}
     >
       <Sidebar
+        activeSection={activeSection}
+        backgroundOpacity={sidebarBackgroundOpacity}
         width={sidebar.width}
         collapsed={sidebar.collapsed}
         dragging={sidebar.dragging}
+        workspaceState={workspaceState}
+        selectedWorkspace={selectedWorkspace}
+        onSelectWorkspace={onSelectWorkspace}
+        onOpenCommandMenu={onOpenCommandMenu}
+        onCreateWorkspace={onCreateWorkspace}
         onToggle={sidebar.toggle}
       />
 
-      {!sidebar.collapsed && (
+      {!sidebar.collapsed ? (
         <div
           role="separator"
           aria-orientation="vertical"
@@ -40,16 +89,29 @@ export function AppShell({ children }: { children: ReactNode }) {
           onPointerCancel={sidebar.endResize}
           onKeyDown={sidebar.onDividerKeyDown}
           className={cn(
-            "relative w-[5px] shrink-0 cursor-col-resize touch-none outline-none",
-            "before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:transition-colors",
+            "relative z-10 w-px shrink-0 cursor-col-resize touch-none outline-none",
+            "after:absolute after:inset-y-0 after:-left-2 after:w-[17px]",
+            "before:absolute before:inset-y-0 before:left-0 before:w-px before:transition-colors",
             sidebar.dragging
               ? "before:bg-primary"
-              : "hover:before:bg-primary/40"
+              : "before:bg-border hover:before:bg-primary/40"
           )}
         />
+      ) : (
+        <div className="w-px shrink-0 bg-border" aria-hidden="true" />
       )}
 
-      <main className="min-w-0 flex-1 overflow-y-auto overscroll-none bg-surface rounded-tl-xl">{children}</main>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-surface">
+        {header}
+
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="min-h-0 min-w-0 flex-1 overflow-y-scroll overscroll-none"
+        >
+          {children}
+        </main>
+      </div>
     </div>
   )
 }

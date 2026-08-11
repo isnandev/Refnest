@@ -1,7 +1,6 @@
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { useCallback, useEffect, useState } from "react"
-
-const isTauriRuntime = () => "__TAURI_INTERNALS__" in window
+import { isTauriRuntime } from "./tauri-runtime"
 
 /** Wraps the native window chrome for the custom (frameless) title bar. */
 export const useWindowControls = () => {

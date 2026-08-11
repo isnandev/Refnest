@@ -54,6 +54,28 @@ await call("create note", "/notes", {
   body: JSON.stringify({ title: "Smoke", body: "bun -> rust -> app" })
 })
 await call("list notes", "/notes", { headers: authorized })
+await call("list workspaces", "/workspaces", { headers: authorized })
+await call("browse workspace folders", "/workspaces/directories", {
+  headers: authorized
+})
+await call("load settings", "/settings", { headers: authorized })
+await call("save settings", "/settings", {
+  method: "PATCH",
+  headers: { ...authorized, "content-type": "application/json" },
+  body: JSON.stringify({
+    themePreference: "dark",
+    activeSection: "settings",
+    sidebarBackgroundOpacity: 64,
+    windowPlacement: {
+      x: 120,
+      y: 80,
+      width: 1040,
+      height: 720,
+      maximized: false
+    }
+  })
+})
+await call("reload settings", "/settings", { headers: authorized })
 
 child.kill()
 

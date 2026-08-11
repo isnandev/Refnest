@@ -1,71 +1,160 @@
-import { CircleAlert, Moon, Sun } from "lucide-react"
+import {
+  UpdateDesktopSettings,
+  type AppSection,
+  type ThemePreference,
+  type WorkspaceId
+} from "@starter/contracts"
+import { Moon, Sun } from "lucide-react"
+import { useCallback, useState } from "react"
+
 import { Button } from "@/components/ui/button"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { SidecarOutput } from "@/features/health/sidecar-output"
-import { SidecarStatus } from "@/features/health/sidecar-status"
-import { useSidecarHealth } from "@/features/health/use-sidecar-health"
-import { NoteComposer } from "@/features/notes/note-composer"
-import { NoteList } from "@/features/notes/note-list"
-import { useNotes } from "@/features/notes/use-notes"
+import { AppCommandMenu } from "@/features/commands/app-command-menu"
+import { NotesPage } from "@/features/notes/notes-page"
+import { SettingsPage } from "@/features/settings/settings-page"
+import { useAppSettings } from "@/features/settings/use-app-settings"
+import { AppBreadcrumb } from "@/features/shell/app-breadcrumb"
 import { AppShell } from "@/features/shell/app-shell"
-import { TitleBar } from "@/features/window/title-bar"
+import { useAppView } from "@/features/shell/use-app-view"
 import { useTheme } from "@/features/theme/use-theme"
+import { TitleBar } from "@/features/window/title-bar"
+import { useWindowPersistence } from "@/features/window/use-window-persistence"
+import { WorkspaceCreateModal } from "@/features/workspaces/workspace-create-modal"
+import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 
 export default function App() {
-  const health = useSidecarHealth()
-  const notes = useNotes()
-  const { theme, toggle } = useTheme()
+  const appSettings = useAppSettings()
+  const settings = appSettings.settings
+  const settingsReady = appSettings.status !== "loading"
+
+  useWindowPersistence(
+    settings.windowPlacement,
+    settingsReady,
+    appSettings.flush
+  )
+
+  const persistTheme = useCallback(
+    (themePreference: ThemePreference) => {
+      appSettings.update(new UpdateDesktopSettings({ themePreference }))
+    },
+    [appSettings.update]
+  )
+  const persistSection = useCallback(
+    (activeSection: AppSection) => {
+      appSettings.update(new UpdateDesktopSettings({ activeSection }))
+    },
+    [appSettings.update]
+  )
+  const persistWorkspace = useCallback(
+    (selectedWorkspaceId: WorkspaceId) => {
+      appSettings.update(new UpdateDesktopSettings({ selectedWorkspaceId }))
+    },
+    [appSettings.update]
+  )
+  const persistSidebar = useCallback(
+    ({ width, collapsed }: { readonly width: number; readonly collapsed: boolean }) => {
+      appSettings.update(
+        new UpdateDesktopSettings({
+          sidebarWidth: Math.round(width),
+          sidebarCollapsed: collapsed
+        })
+      )
+    },
+    [appSettings.update]
+  )
+
+  const location = useAppView(
+    settings.activeSection,
+    settingsReady,
+    persistSection
+  )
+  const theme = useTheme(settings.themePreference, persistTheme)
+  const workspaces = useWorkspaces(
+    settings.selectedWorkspaceId,
+    settingsReady,
+    persistWorkspace
+  )
+  const [commandMenuOpen, setCommandMenuOpen] = useState(false)
+  const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false)
+
+  const openWorkspaceCreation = useCallback(() => {
+    workspaces.clearActionError()
+    setWorkspaceModalOpen(true)
+  }, [workspaces.clearActionError])
 
   return (
-    <div className="flex h-screen flex-col bg-transparent">
-      <TitleBar title="Tauri Effect Starter">
-        <SidecarStatus state={health.state} />
+    <div className="h-screen overflow-hidden bg-transparent">
+      <a
+        href="#main-content"
+        className="fixed left-3 top-3 z-50 -translate-y-20 rounded-full bg-primary px-4 py-2 text-label text-primary-foreground transition-transform focus:translate-y-0"
+      >
+        Skip to content
+      </a>
 
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={toggle}
-          aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
-        >
-          {theme === "light" ? <Moon aria-hidden="true" /> : <Sun aria-hidden="true" />}
-        </Button>
-      </TitleBar>
-
-      <AppShell>
-        <div className="grid gap-4 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <Card>
-            <CardHeader>
-              <CardTitle>Add a note</CardTitle>
-              <CardDescription>
-                The form only collects input. Validation, ids, and storage all happen in the Bun
-                process.
-              </CardDescription>
-            </CardHeader>
-
-            <NoteComposer pending={notes.pending} onSubmit={notes.create} />
-
-            {notes.actionError !== null && (
-              <p className="flex items-center gap-2 text-body-sm text-danger" role="alert">
-                <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
-                {notes.actionError}
-              </p>
-            )}
-          </Card>
-
-          <div className="flex flex-col gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Notes</CardTitle>
-                <CardDescription>Served by the sidecar over the shared contract.</CardDescription>
-              </CardHeader>
-
-              <NoteList state={notes.state} pending={notes.pending} onRemove={notes.remove} />
-            </Card>
-
-            <SidecarOutput state={health.state} />
-          </div>
-        </div>
+      <AppShell
+        activeSection={location.activeSection}
+        autoCollapseSidebar={settings.autoCollapseSidebar}
+        sidebarBackgroundOpacity={settings.sidebarBackgroundOpacity}
+        sidebarWidth={settings.sidebarWidth}
+        sidebarCollapsed={settings.sidebarCollapsed}
+        settingsReady={settingsReady}
+        workspaceState={workspaces.state}
+        selectedWorkspace={workspaces.selectedWorkspace}
+        onSelectWorkspace={workspaces.select}
+        onOpenCommandMenu={() => setCommandMenuOpen(true)}
+        onCreateWorkspace={openWorkspaceCreation}
+        onSidebarPreferencesChange={persistSidebar}
+        header={
+          <TitleBar leading={<AppBreadcrumb activeSection={location.activeSection} />}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={theme.toggle}
+              aria-label={
+                theme.theme === "light"
+                  ? "Switch to dark theme"
+                  : "Switch to light theme"
+              }
+            >
+              {theme.theme === "light" ? (
+                <Moon aria-hidden="true" />
+              ) : (
+                <Sun aria-hidden="true" />
+              )}
+            </Button>
+          </TitleBar>
+        }
+      >
+        {location.view === "settings" ? (
+          <SettingsPage
+            resolvedTheme={theme.theme}
+            themePreference={theme.preference}
+            settings={settings}
+            saveError={appSettings.saveError}
+            onThemePreferenceChange={theme.setPreference}
+            onSettingChange={appSettings.update}
+            onReset={appSettings.resetPreferences}
+          />
+        ) : (
+          <NotesPage />
+        )}
       </AppShell>
+
+      <AppCommandMenu
+        open={commandMenuOpen}
+        workspaceState={workspaces.state}
+        selectedWorkspace={workspaces.selectedWorkspace}
+        onOpenChange={setCommandMenuOpen}
+        onSelectWorkspace={workspaces.select}
+        onCreateWorkspace={openWorkspaceCreation}
+      />
+
+      <WorkspaceCreateModal
+        open={workspaceModalOpen}
+        pending={workspaces.pending}
+        actionError={workspaces.actionError}
+        onOpenChange={setWorkspaceModalOpen}
+        onCreate={workspaces.create}
+      />
     </div>
   )
 }

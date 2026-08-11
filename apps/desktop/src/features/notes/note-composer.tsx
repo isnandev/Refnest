@@ -55,7 +55,7 @@ export function NoteComposer({ pending, onSubmit }: NoteComposerProps) {
           id="note-title"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          placeholder="What happened?"
+          placeholder="Give it a short title…"
           aria-invalid={titleError !== null}
           aria-describedby={titleError === null ? undefined : "note-title-error"}
         />
@@ -72,7 +72,7 @@ export function NoteComposer({ pending, onSubmit }: NoteComposerProps) {
           id="note-body"
           value={body}
           onChange={(event) => setBody(event.target.value)}
-          placeholder="Optional."
+          placeholder="Add context…"
           rows={3}
           aria-invalid={bodyError !== null}
           aria-describedby={bodyError === null ? undefined : "note-body-error"}

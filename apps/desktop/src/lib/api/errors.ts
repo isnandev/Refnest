@@ -13,6 +13,15 @@ export const toApiFailure = (cause: unknown): ApiFailure => {
     return new ApiFailure({ message: cause.message })
   }
 
+  if (
+    typeof cause === "object" &&
+    cause !== null &&
+    "reason" in cause &&
+    typeof cause.reason === "string"
+  ) {
+    return new ApiFailure({ message: cause.reason })
+  }
+
   if (typeof cause === "object" && cause !== null && "_tag" in cause) {
     return new ApiFailure({ message: String(cause._tag) })
   }

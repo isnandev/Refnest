@@ -1,24 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
-import { HttpApiBuilder } from "@effect/platform"
-import { BunHttpServer } from "@effect/platform-bun"
-import { Effect, Layer } from "effect"
-import { ApiLive } from "../src/http/api"
-
-/** The API plus the platform services `toWebHandler` needs to run a router in-process. */
-const ApiUnderTest = Layer.merge(ApiLive, BunHttpServer.layerContext)
-
-const webHandler = Effect.acquireRelease(
-  Effect.sync(() => HttpApiBuilder.toWebHandler(ApiUnderTest)),
-  ({ dispose }) => Effect.promise(() => dispose())
-)
-
-const jsonRequest = (method: string, path: string, body?: unknown) =>
-  new Request(`http://sidecar.test${path}`, {
-    method,
-    ...(body === undefined
-      ? {}
-      : { body: JSON.stringify(body), headers: { "content-type": "application/json" } })
-  })
+import { Effect } from "effect"
+import { jsonRequest, webHandler } from "./api-test-client"
 
 describe("notes over HTTP", () => {
   it.scoped("serves the full note lifecycle with contract-derived status codes", () =>

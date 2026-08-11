@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::Deserialize;
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 use tokio::sync::watch;
@@ -45,11 +45,21 @@ impl Sidecar {
     /// callers wait for the handshake through [`Sidecar::endpoint`].
     pub fn spawn<R: Runtime>(app: &AppHandle<R>) -> Result<Self, String> {
         let (ready_tx, ready_rx) = watch::channel(None);
+        let data_dir = app
+            .path()
+            .app_local_data_dir()
+            .map_err(|error| format!("could not resolve the app data directory: {error}"))?;
+
+        std::fs::create_dir_all(&data_dir)
+            .map_err(|error| format!("could not create the app data directory: {error}"))?;
+
+        let database_path = data_dir.join("settings.sqlite3");
 
         let (mut events, child) = app
             .shell()
             .sidecar(SIDECAR_BIN)
             .map_err(|error| format!("could not resolve the {SIDECAR_BIN} sidecar: {error}"))?
+            .env("STARTER_DATABASE_PATH", &database_path)
             .spawn()
             .map_err(|error| format!("could not start the {SIDECAR_BIN} sidecar: {error}"))?;
 
