@@ -1,6 +1,7 @@
 import {
   UpdateInspirationReference,
   type InspirationReference,
+  type ReferenceId,
   type WorkspaceId
 } from "@refnest/contracts"
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -127,6 +128,18 @@ export const useReferenceLibrary = (workspaceId: WorkspaceId | null) => {
     [library.loadReference]
   )
 
+  /** Opens a reference the user did not click, such as a finished capture. */
+  const selectReferenceById = useCallback(
+    async (id: ReferenceId) => {
+      const loaded = await library.loadReference(id)
+      if (loaded === null) return
+
+      setSelectedItem(loaded)
+      setInspectorOpen(true)
+    },
+    [library.loadReference]
+  )
+
   const updateSelected = useCallback(
     async (patch: UpdateInspirationReference) => {
       if (selectedItem === null) return false
@@ -201,6 +214,7 @@ export const useReferenceLibrary = (workspaceId: WorkspaceId | null) => {
     setCommandMenuOpen,
     selectFolder,
     selectItem,
+    selectReferenceById,
     updateSelected,
     enrichSelected,
     moveSelectedToTrash,

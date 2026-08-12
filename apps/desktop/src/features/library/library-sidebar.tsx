@@ -1,9 +1,6 @@
 import type { Workspace } from "@refnest/contracts"
 import {
   Bell,
-  CheckCircle2,
-  CircleAlert,
-  Clock3,
   FolderPlus,
   Library,
   Link2,
@@ -16,8 +13,11 @@ import {
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
 import type { WorkspacesState } from "@/features/workspaces/use-workspaces"
 import { WorkspaceSelector } from "@/features/workspaces/workspace-selector"
+import { captureHost, captureProgress, isActiveCapture } from "./capture-job"
+import { CaptureStatusIcon } from "./capture-status-icon"
 import { FolderTree } from "./folder-tree"
 import type { LibraryNavigationState } from "./use-library-data"
 import type { CaptureJobsState } from "./use-quick-save"
@@ -25,27 +25,6 @@ import {
   type LibraryFolder,
   type LibrarySelection
 } from "./library-data"
-
-const captureLabel = (url: string) => {
-  try {
-    return new URL(url).hostname
-  } catch {
-    return url
-  }
-}
-
-const CaptureStatusIcon = ({ status }: { status: CaptureJobsState["jobs"][number]["status"] }) => {
-  if (status === "completed") {
-    return <CheckCircle2 className="size-3.5 text-lime" aria-hidden="true" />
-  }
-  if (status === "failed") {
-    return <CircleAlert className="size-3.5 text-danger" aria-hidden="true" />
-  }
-  if (status === "queued") {
-    return <Clock3 className="size-3.5 text-muted-foreground" aria-hidden="true" />
-  }
-  return <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
-}
 
 export function LibrarySidebar({
   workspaceState,
@@ -92,7 +71,7 @@ export function LibrarySidebar({
   const [notificationsOpen, setNotificationsOpen] = useState(false)
 
   const activeCaptures = captureJobs.jobs.filter((job) =>
-    ["queued", "capturing", "enriching"].includes(job.status)
+    isActiveCapture(job.status)
   ).length
 
   return (
@@ -155,24 +134,36 @@ export function LibrarySidebar({
                 </p>
               ) : (
                 <div className="max-h-72 overflow-y-auto">
-                  {captureJobs.jobs.slice(0, 8).map((job) => (
-                    <div key={job.id} className="rounded-sm p-2.5 hover:bg-surface-muted">
-                      <div className="flex items-center gap-2">
-                        <CaptureStatusIcon status={job.status} />
-                        <p className="min-w-0 flex-1 truncate text-body-sm">
-                          {captureLabel(job.url)}
-                        </p>
-                        <span className="text-caption capitalize text-muted-foreground">
-                          {job.status}
-                        </span>
+                  {captureJobs.jobs.slice(0, 8).map((job) => {
+                    const host = captureHost(job.url)
+                    const progress = captureProgress(job)
+
+                    return (
+                      <div key={job.id} className="rounded-sm p-2.5 hover:bg-surface-muted">
+                        <div className="flex items-center gap-2">
+                          <CaptureStatusIcon job={job} />
+                          <p className="min-w-0 flex-1 truncate text-body-sm">
+                            {host}
+                          </p>
+                          <span className="text-caption text-muted-foreground">
+                            {progress.label}
+                          </span>
+                        </div>
+                        {isActiveCapture(job.status) && (
+                          <Progress
+                            className="mt-2"
+                            value={progress.percent}
+                            label={`Capture progress for ${host}`}
+                          />
+                        )}
+                        {(job.error ?? job.warning) !== null && (
+                          <p className="mt-1 line-clamp-2 text-caption text-muted-foreground">
+                            {job.error ?? job.warning}
+                          </p>
+                        )}
                       </div>
-                      {(job.error ?? job.warning) !== null && (
-                        <p className="mt-1 line-clamp-2 text-caption text-muted-foreground">
-                          {job.error ?? job.warning}
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>

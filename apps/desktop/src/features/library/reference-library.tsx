@@ -15,6 +15,7 @@ import type { Theme } from "@/features/theme/use-theme"
 import { TitleBar } from "@/features/window/title-bar"
 import type { WorkspacesState } from "@/features/workspaces/use-workspaces"
 import { cn } from "@/lib/utils"
+import { CaptureToaster } from "./capture-toaster"
 import { FolderCreateDialog } from "./folder-create-dialog"
 import { InspectorPanel } from "./inspector-panel"
 import { PRIMARY_FOLDERS } from "./library-data"
@@ -96,6 +97,7 @@ export function ReferenceLibrary({
     setCommandMenuOpen,
     selectFolder,
     selectItem,
+    selectReferenceById,
     updateSelected,
     enrichSelected,
     moveSelectedToTrash,
@@ -300,6 +302,11 @@ export function ReferenceLibrary({
           </div>
         </section>
       </div>
+
+      <CaptureToaster
+        jobs={quickSave.state.jobs}
+        onShowReference={(id) => void selectReferenceById(id)}
+      />
 
       <AppCommandMenu
         open={commandMenuOpen}
