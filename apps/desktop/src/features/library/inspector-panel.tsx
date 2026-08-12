@@ -1,24 +1,34 @@
-import type { InspirationReference } from "@refnest/contracts"
+import {
+  REFERENCE_DESCRIPTION_MAX_LENGTH,
+  REFERENCE_TAG_MAX_LENGTH,
+  REFERENCE_TITLE_MAX_LENGTH,
+  ReferenceTag,
+  UpdateInspirationReference,
+  type InspirationReference
+} from "@refnest/contracts"
 import {
   ExternalLink,
   Heart,
   Image as ImageIcon,
+  PanelRightClose,
   Replace,
   RotateCcw,
   Sparkles,
   Tag,
-  Trash2,
-  X
+  Trash2
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { formatFileSize } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { EditableProperty } from "./editable-property"
 import {
   formatDimensions,
   formatLibraryDate,
   formatReferenceKind,
-  formatReferenceSource
+  formatReferenceSource,
+  formatTagList,
+  parseTagList
 } from "./library-format"
 import { ReferencePreview } from "./reference-preview"
 
@@ -31,6 +41,23 @@ function PropertyRow({ label, value }: { label: string; value: string }) {
   )
 }
 
+const validateTitle = (value: string) =>
+  value.length === 0
+    ? "A title is required."
+    : value.length > REFERENCE_TITLE_MAX_LENGTH
+      ? `A title can be at most ${REFERENCE_TITLE_MAX_LENGTH} characters.`
+      : null
+
+const validateDescription = (value: string) =>
+  value.length > REFERENCE_DESCRIPTION_MAX_LENGTH
+    ? `A description can be at most ${REFERENCE_DESCRIPTION_MAX_LENGTH} characters.`
+    : null
+
+const validateTags = (value: string) =>
+  parseTagList(value).some((tag) => tag.length > REFERENCE_TAG_MAX_LENGTH)
+    ? `A tag can be at most ${REFERENCE_TAG_MAX_LENGTH} characters.`
+    : null
+
 export function InspectorPanel({
   item,
   imageUrl,
@@ -40,7 +67,8 @@ export function InspectorPanel({
   canEnrich,
   pending,
   actionError,
-  onClearSelection,
+  onClose,
+  onEditMetadata,
   onToggleFavorite,
   onTrash,
   onRestore,
@@ -57,7 +85,10 @@ export function InspectorPanel({
   readonly canEnrich: boolean
   readonly pending: boolean
   readonly actionError: string | null
-  readonly onClearSelection: () => void
+  readonly onClose: () => void
+  readonly onEditMetadata: (
+    patch: UpdateInspirationReference
+  ) => Promise<boolean>
   readonly onToggleFavorite: () => void
   readonly onTrash: () => void
   readonly onRestore: () => void
@@ -66,6 +97,8 @@ export function InspectorPanel({
   readonly onConvert: () => void
   readonly onOpenSource: () => void
 }) {
+  const editable = item !== null && item.status !== "trash" && !pending
+
   return (
     <aside
       aria-label="Reference inspector"
@@ -77,13 +110,27 @@ export function InspectorPanel({
             <p className="text-caption text-muted-foreground">
               {item === null ? "Collection" : formatReferenceKind(item.kind)}
             </p>
-            <h2 className="mt-1 text-h3">
-              {item?.title ?? folderLabel}
-            </h2>
+
+            {item === null ? (
+              <h2 className="mt-1 text-h3">{folderLabel}</h2>
+            ) : (
+              <EditableProperty
+                label="Title"
+                value={item.title}
+                disabled={!editable}
+                className="mt-1"
+                validate={validateTitle}
+                onCommit={(title) =>
+                  onEditMetadata(new UpdateInspirationReference({ title }))
+                }
+              >
+                <h2 className="text-h3">{item.title}</h2>
+              </EditableProperty>
+            )}
           </div>
 
-          {item !== null && (
-            <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
+            {item !== null && (
               <Button
                 type="button"
                 variant="ghost"
@@ -100,17 +147,17 @@ export function InspectorPanel({
                   className={cn(item.favorite && "fill-current text-lime")}
                 />
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Clear reference selection"
-                onClick={onClearSelection}
-              >
-                <X aria-hidden="true" />
-              </Button>
-            </div>
-          )}
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Hide details"
+              onClick={onClose}
+            >
+              <PanelRightClose aria-hidden="true" />
+            </Button>
+          </div>
         </div>
 
         {item !== null && (
@@ -124,13 +171,31 @@ export function InspectorPanel({
           </div>
         )}
 
-        <div className="mt-4 rounded-sm border bg-surface-muted p-3 text-body-sm text-muted-foreground">
-          {item === null
-            ? `${itemCount} references in ${folderLabel}. Select one to inspect its saved metadata.`
-            : item.description.length > 0
-              ? item.description
-              : "No description has been saved for this reference yet."}
-        </div>
+        {item === null ? (
+          <div className="mt-4 rounded-sm border bg-surface-muted p-3 text-body-sm text-muted-foreground">
+            {itemCount} references in {folderLabel}. Select one to inspect its
+            saved metadata.
+          </div>
+        ) : (
+          <EditableProperty
+            label="Description"
+            value={item.description}
+            placeholder="Describe this reference…"
+            multiline
+            disabled={!editable}
+            className="mt-4"
+            validate={validateDescription}
+            onCommit={(description) =>
+              onEditMetadata(new UpdateInspirationReference({ description }))
+            }
+          >
+            <span className="block rounded-sm border bg-surface-muted p-3 text-body-sm text-muted-foreground">
+              {item.description.length > 0
+                ? item.description
+                : "No description has been saved for this reference yet."}
+            </span>
+          </EditableProperty>
+        )}
 
         {actionError !== null && (
           <p
@@ -174,20 +239,41 @@ export function InspectorPanel({
                 <Tag className="size-4 text-muted-foreground" aria-hidden="true" />
                 Tags
               </div>
-              {item.tags.length === 0 ? (
-                <p className="mt-2 text-caption text-muted-foreground">No tags</p>
-              ) : (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {item.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full border bg-surface-muted px-2.5 py-1 text-caption"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+
+              <EditableProperty
+                label="Tags"
+                value={formatTagList(item.tags)}
+                placeholder="editorial, dark, grid"
+                disabled={!editable}
+                className="mt-2"
+                validate={validateTags}
+                onCommit={(value) =>
+                  onEditMetadata(
+                    new UpdateInspirationReference({
+                      tags: parseTagList(value).map((tag) =>
+                        ReferenceTag.make(tag)
+                      )
+                    })
+                  )
+                }
+              >
+                {item.tags.length === 0 ? (
+                  <span className="block text-caption text-muted-foreground">
+                    No tags
+                  </span>
+                ) : (
+                  <span className="flex flex-wrap gap-1.5">
+                    {item.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full border bg-surface-muted px-2.5 py-1 text-caption"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </EditableProperty>
             </div>
 
             <div className="mt-5 border-t pt-4">

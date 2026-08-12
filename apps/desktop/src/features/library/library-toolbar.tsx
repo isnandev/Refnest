@@ -1,16 +1,9 @@
-import {
-  LayoutGrid,
-  Minus,
-  PanelLeftOpen,
-  Plus,
-  Search,
-  Sparkles,
-  X
-} from "lucide-react"
+import { Minus, PanelLeftOpen, Plus, Search, Sparkles, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { FilterPopover } from "./filter-popover"
+import { COLUMN_MAX, COLUMN_MIN, boundedColumns } from "./library-columns"
 
 const SEARCH_SHORTCUT =
   globalThis.navigator?.userAgent.includes("Mac") === true ? "⌘K" : "Ctrl K"
@@ -19,7 +12,7 @@ export function LibraryToolbar({
   workspaceLabel,
   folderLabel,
   searchQuery,
-  zoom,
+  columns,
   filterOpen,
   activeFilter,
   filterOptions,
@@ -29,7 +22,7 @@ export function LibraryToolbar({
   onOpenSidebar,
   onOpenSearch,
   onClearSearch,
-  onZoomChange,
+  onColumnsChange,
   onFiltersOpenChange,
   onFilterChange,
   onIncludeSubfoldersChange,
@@ -38,7 +31,7 @@ export function LibraryToolbar({
   workspaceLabel: string
   folderLabel: string
   searchQuery: string
-  zoom: number
+  columns: number
   filterOpen: boolean
   activeFilter: string
   filterOptions: readonly string[]
@@ -48,15 +41,14 @@ export function LibraryToolbar({
   onOpenSidebar: () => void
   onOpenSearch: () => void
   onClearSearch: () => void
-  onZoomChange: (zoom: number) => void
+  onColumnsChange: (columns: number) => void
   onFiltersOpenChange: (open: boolean) => void
   onFilterChange: (filter: string) => void
   onIncludeSubfoldersChange: (include: boolean) => void
   onEnrich: () => void
 }) {
-  const setBoundedZoom = (nextZoom: number) => {
-    onZoomChange(Math.min(1.2, Math.max(0.75, nextZoom)))
-  }
+  /** The slider runs zoomed-out to zoomed-in, which is 8 columns down to 1. */
+  const zoomValue = COLUMN_MAX + COLUMN_MIN - columns
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-1.5" data-tauri-drag-region>
@@ -81,20 +73,28 @@ export function LibraryToolbar({
           type="button"
           variant="ghost"
           size="icon-sm"
-          aria-label="Decrease thumbnail size"
-          onClick={() => setBoundedZoom(zoom - 0.1)}
+          aria-label="Zoom out to more columns"
+          disabled={columns >= COLUMN_MAX}
+          onClick={() => onColumnsChange(boundedColumns(columns + 1))}
         >
           <Minus aria-hidden="true" />
         </Button>
         <label className="flex items-center">
-          <span className="sr-only">Thumbnail size</span>
+          <span className="sr-only">Columns</span>
           <input
             type="range"
-            min="0.75"
-            max="1.2"
-            step="0.05"
-            value={zoom}
-            onChange={(event) => onZoomChange(Number(event.currentTarget.value))}
+            min={COLUMN_MIN}
+            max={COLUMN_MAX}
+            step="1"
+            value={zoomValue}
+            aria-valuetext={`${columns} ${columns === 1 ? "column" : "columns"}`}
+            onChange={(event) =>
+              onColumnsChange(
+                boundedColumns(
+                  COLUMN_MAX + COLUMN_MIN - Number(event.currentTarget.value)
+                )
+              )
+            }
             className="library-zoom-slider w-20"
           />
         </label>
@@ -102,11 +102,15 @@ export function LibraryToolbar({
           type="button"
           variant="ghost"
           size="icon-sm"
-          aria-label="Increase thumbnail size"
-          onClick={() => setBoundedZoom(zoom + 0.1)}
+          aria-label="Zoom in to fewer columns"
+          disabled={columns <= COLUMN_MIN}
+          onClick={() => onColumnsChange(boundedColumns(columns - 1))}
         >
           <Plus aria-hidden="true" />
         </Button>
+        <span className="numeric w-10 shrink-0 text-caption text-muted-foreground">
+          {columns} col
+        </span>
       </div>
 
       <div className="ml-1 hidden items-center md:flex">
@@ -120,16 +124,6 @@ export function LibraryToolbar({
           onClick={onEnrich}
         >
           <Sparkles aria-hidden="true" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Masonry view"
-          aria-pressed="true"
-          title="Masonry view"
-        >
-          <LayoutGrid aria-hidden="true" />
         </Button>
         <FilterPopover
           open={filterOpen}

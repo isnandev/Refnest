@@ -19,6 +19,7 @@ import type { Theme } from "@/features/theme/use-theme"
 import { TitleBar } from "@/features/window/title-bar"
 import type { WorkspacesState } from "@/features/workspaces/use-workspaces"
 import { cn } from "@/lib/utils"
+import { BulkActionBar } from "./bulk-action-bar"
 import { CaptureToaster } from "./capture-toaster"
 import { FolderCreateDialog } from "./folder-create-dialog"
 import { InspectorPanel } from "./inspector-panel"
@@ -28,6 +29,7 @@ import { LibraryToolbar } from "./library-toolbar"
 import { openReferenceSource } from "./open-reference-source"
 import { QuickSaveDialog } from "./quick-save-dialog"
 import { ReferenceGrid } from "./reference-grid"
+import { ReferenceViewer } from "./reference-viewer"
 import { useReferenceLibrary } from "./use-reference-library"
 
 export function ReferenceLibrary({
@@ -77,9 +79,13 @@ export function ReferenceLibrary({
   )
   const {
     activeSelection,
-    selectedItem,
+    activeItem,
+    viewerItem,
+    viewerIndex,
+    selection,
+    selectedItems,
     searchQuery,
-    zoom,
+    columns,
     filtersOpen,
     activeFilter,
     includeSubfolders,
@@ -99,9 +105,8 @@ export function ReferenceLibrary({
     currentFolderCount,
     assets,
     parentFolder,
-    setSelectedItem,
     setSearchQuery,
-    setZoom,
+    setColumns,
     setFiltersOpen,
     setActiveFilter,
     setIncludeSubfolders,
@@ -111,11 +116,17 @@ export function ReferenceLibrary({
     setFolderCreateOpen,
     setCommandMenuOpen,
     selectFolder,
-    selectItem,
-    selectReferenceById,
-    updateSelected,
-    enrichSelected,
-    moveSelectedToTrash,
+    openReference,
+    closeViewer,
+    showPreviousReference,
+    showNextReference,
+    showReferenceById,
+    updateActive,
+    enrichActive,
+    trashActive,
+    restoreActive,
+    favoriteSelected,
+    trashSelected,
     restoreSelected
   } = useReferenceLibrary(workspaceId)
   const converter = useImageConverter()
@@ -221,21 +232,21 @@ export function ReferenceLibrary({
                 workspaceLabel={selectedWorkspace?.name ?? "Workspace"}
                 folderLabel={currentFolderLabel}
                 searchQuery={searchQuery}
-                zoom={zoom}
+                columns={columns}
                 filterOpen={filtersOpen}
                 activeFilter={activeFilter}
                 filterOptions={filterOptions}
                 includeSubfolders={includeSubfolders}
-                canEnrich={selectedItem !== null && aiEnabled}
+                canEnrich={activeItem !== null && aiEnabled}
                 actionPending={library.pending || referenceImport.pending}
                 onOpenSidebar={() => setMobileSidebarOpen(true)}
                 onOpenSearch={() => setCommandMenuOpen(true)}
                 onClearSearch={() => setSearchQuery("")}
-                onZoomChange={setZoom}
+                onColumnsChange={setColumns}
                 onFiltersOpenChange={setFiltersOpen}
                 onFilterChange={setActiveFilter}
                 onIncludeSubfoldersChange={setIncludeSubfolders}
-                onEnrich={() => void enrichSelected()}
+                onEnrich={() => void enrichActive()}
               />
               </>
             }
@@ -244,7 +255,8 @@ export function ReferenceLibrary({
               type="button"
               variant="ghost"
               size="icon-sm"
-              aria-label={inspectorOpen ? "Collapse inspector" : "Open inspector"}
+              aria-label={inspectorOpen ? "Hide details" : "Show details"}
+              title={inspectorOpen ? "Hide details" : "Show details"}
               aria-expanded={inspectorOpen}
               onClick={() => setInspectorOpen((open) => !open)}
             >
@@ -264,8 +276,10 @@ export function ReferenceLibrary({
             >
               <ReferenceGrid
                 items={visibleItems}
-                selectedId={selectedItem?.id ?? null}
-                zoom={zoom}
+                activeId={activeItem?.id ?? null}
+                selectedIds={selection.ids}
+                selectionMode={selection.active}
+                columns={columns}
                 imageUrls={assets.urls}
                 failedImages={assets.failed}
                 loading={
@@ -274,7 +288,9 @@ export function ReferenceLibrary({
                 }
                 error={referencesError}
                 onRetry={() => void library.refreshReferences()}
-                onSelect={selectItem}
+                onOpen={openReference}
+                onToggleSelect={(item) => selection.toggle(item.id)}
+                onExtendSelect={(item) => selection.extendTo(item.id)}
               />
 
               <p className="sr-only" aria-live="polite">
@@ -291,12 +307,12 @@ export function ReferenceLibrary({
               inert={!inspectorOpen}
             >
               <InspectorPanel
-                item={selectedItem}
+                item={activeItem}
                 imageUrl={
-                  selectedItem === null ? undefined : assets.urls.get(selectedItem.id)
+                  activeItem === null ? undefined : assets.urls.get(activeItem.id)
                 }
                 imageFailed={
-                  selectedItem !== null && assets.failed.has(selectedItem.id)
+                  activeItem !== null && assets.failed.has(activeItem.id)
                 }
                 folderLabel={currentFolderLabel}
                 itemCount={currentFolderCount}
@@ -307,26 +323,24 @@ export function ReferenceLibrary({
                 actionError={
                   referenceImport.actionError ?? library.actionError
                 }
-                onClearSelection={() => setSelectedItem(null)}
+                onClose={() => setInspectorOpen(false)}
+                onEditMetadata={updateActive}
                 onToggleFavorite={() => {
-                  if (selectedItem === null) return
-                  void updateSelected(
+                  if (activeItem === null) return
+                  void updateActive(
                     new UpdateInspirationReference({
-                      favorite: !selectedItem.favorite
+                      favorite: !activeItem.favorite
                     })
                   )
                 }}
-                onTrash={() => void moveSelectedToTrash()}
-                onRestore={() => void restoreSelected()}
-                onEnrich={() => void enrichSelected()}
+                onTrash={() => void trashActive()}
+                onRestore={() => void restoreActive()}
+                onEnrich={() => void enrichActive()}
                 canConvert={onLocalLibrary}
                 onConvert={openConvert}
                 onOpenSource={() => {
-                  if (
-                    selectedItem !== null &&
-                    selectedItem.source !== "local-file"
-                  ) {
-                    void openReferenceSource(selectedItem.sourceUrl)
+                  if (activeItem !== null && activeItem.source !== "local-file") {
+                    void openReferenceSource(activeItem.sourceUrl)
                   }
                 }}
               />
@@ -335,9 +349,39 @@ export function ReferenceLibrary({
         </section>
       </div>
 
+      <ReferenceViewer
+        item={viewerItem}
+        imageUrl={
+          viewerItem === null ? undefined : assets.urls.get(viewerItem.id)
+        }
+        imageFailed={viewerItem !== null && assets.failed.has(viewerItem.id)}
+        index={viewerIndex}
+        total={visibleItems.length}
+        onOpenChange={(open) => {
+          if (!open) closeViewer()
+        }}
+        onPrevious={showPreviousReference}
+        onNext={showNextReference}
+        onShowDetails={() => {
+          closeViewer()
+          setInspectorOpen(true)
+        }}
+      />
+
+      <BulkActionBar
+        items={selectedItems}
+        allVisibleSelected={selection.allVisibleSelected}
+        pending={library.pending}
+        onSelectAll={selection.selectAll}
+        onClear={selection.clear}
+        onFavorite={(favorite) => void favoriteSelected(favorite)}
+        onTrash={() => void trashSelected()}
+        onRestore={() => void restoreSelected()}
+      />
+
       <CaptureToaster
         jobs={quickSave.state.jobs}
-        onShowReference={(id) => void selectReferenceById(id)}
+        onShowReference={(id) => void showReferenceById(id)}
       />
 
       <AppCommandMenu
@@ -355,7 +399,7 @@ export function ReferenceLibrary({
         theme={theme}
         onOpenChange={setCommandMenuOpen}
         onQueryChange={setSearchQuery}
-        onSelectReference={selectItem}
+        onSelectReference={openReference}
         onSelectFolder={selectFolder}
         onSelectWorkspace={onSelectWorkspace}
         onCreateWorkspace={onCreateWorkspace}
@@ -381,7 +425,7 @@ export function ReferenceLibrary({
 
       <ConvertReferenceDialog
         open={convertOpen}
-        referenceTitle={selectedItem?.title ?? "This image"}
+        referenceTitle={activeItem?.title ?? "This image"}
         destinationLabel={
           parentFolder?.label ?? selectedWorkspace?.name ?? "workspace root"
         }
@@ -389,10 +433,10 @@ export function ReferenceLibrary({
         actionError={converter.actionError}
         onOpenChange={setConvertOpen}
         onConvert={async (format, quality) => {
-          if (selectedItem === null || workspaceId === null) return false
+          if (activeItem === null || workspaceId === null) return false
 
           const created = await converter.convertReference(
-            selectedItem.id,
+            activeItem.id,
             workspaceId,
             parentFolder?.id ?? null,
             format,

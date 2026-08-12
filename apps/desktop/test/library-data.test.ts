@@ -14,6 +14,8 @@ import {
 } from "@/features/library/library-data"
 import {
   formatDimensions,
+  formatTagList,
+  parseTagList,
   referenceAspectRatio
 } from "@/features/library/library-format"
 import { referenceImagePath } from "@/features/library/use-reference-assets"
@@ -131,7 +133,24 @@ describe("library presentation mapping", () => {
     expect(formatDimensions({ width: 1_440, height: 6_000 })).toBe(
       "1,440 × 6,000"
     )
-    expect(referenceAspectRatio({ width: 1_440, height: 6_000 })).toBe(0.5)
     expect(formatFileSize(3_800_000)).toBe("3.80 MB")
+  })
+
+  it("keeps real proportions for masonry and only bounds the extremes", () => {
+    expect(referenceAspectRatio({ width: 1_600, height: 900 })).toBeCloseTo(
+      1.778
+    )
+    expect(referenceAspectRatio({ width: 1_440, height: 6_000 })).toBe(0.4)
+    expect(referenceAspectRatio({ width: 6_000, height: 900 })).toBe(2.5)
+    expect(referenceAspectRatio({ width: null, height: null })).toBe(0.8)
+  })
+
+  it("round-trips the inspector's editable tag list", () => {
+    expect(formatTagList(["editorial", "dark"])).toBe("editorial, dark")
+    expect(parseTagList("  editorial , dark ,, editorial ")).toEqual([
+      "editorial",
+      "dark"
+    ])
+    expect(parseTagList("   ")).toEqual([])
   })
 })

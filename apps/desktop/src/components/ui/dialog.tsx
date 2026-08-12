@@ -16,25 +16,46 @@ function DialogClose(props: React.ComponentProps<typeof DialogPrimitive.Close>) 
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
+/**
+ * `panel` is the documented modal card. `canvas` is the full-viewport variant
+ * for media: the scrim becomes the near-black image surface the design source
+ * reserves for viewing, and the dialog itself carries no chrome of its own.
+ */
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  variant = "panel",
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   readonly showCloseButton?: boolean
+  readonly variant?: "panel" | "canvas"
 }) {
+  const canvas = variant === "canvas"
+
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay
         data-slot="dialog-overlay"
-        className="fixed inset-0 z-50 bg-black/35 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+        className={cn(
+          "fixed inset-0 z-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          canvas ? "bg-surface-inverse/95" : "bg-black/35"
+        )}
       />
-      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className={cn(
+          "pointer-events-none fixed inset-0 z-50 flex items-center justify-center",
+          canvas ? "p-0" : "p-4"
+        )}
+      >
         <DialogPrimitive.Content
           data-slot="dialog-content"
+          data-variant={variant}
           className={cn(
-            "pointer-events-auto relative flex max-h-[calc(100vh-2rem)] w-full max-w-[620px] flex-col overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-[0_12px_32px_rgba(0,0,0,0.10)] outline-none",
+            "pointer-events-auto relative flex flex-col outline-none",
+            canvas
+              ? "size-full max-w-none text-on-inverse"
+              : "max-h-[calc(100vh-2rem)] w-full max-w-[620px] overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-[0_12px_32px_rgba(0,0,0,0.10)]",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
             className
           )}

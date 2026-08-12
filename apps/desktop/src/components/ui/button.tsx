@@ -17,6 +17,9 @@ const buttonVariants = cva(
           "border border-input bg-secondary text-secondary-foreground hover:bg-accent aria-checked:border-lime aria-checked:ring-1 aria-checked:ring-lime aria-pressed:border-lime aria-pressed:ring-1 aria-pressed:ring-lime",
         secondary: "bg-secondary text-secondary-foreground hover:bg-accent",
         ghost: "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+        // Ghost, but on the matte surfaces where the light ring would vanish.
+        "ghost-inverse":
+          "text-on-inverse-muted hover:bg-surface-inverse-raised hover:text-on-inverse focus-visible:ring-lime",
         destructive: "bg-destructive text-primary-foreground hover:bg-destructive/90",
         link: "text-primary underline-offset-4 hover:underline"
       },

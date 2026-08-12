@@ -41,6 +41,8 @@ type MutationResult<A> =
 
 const EMPTY_NAVIGATION: NavigationSnapshot = { folders: [], smartFolders: [] }
 const EMPTY_REFERENCES: ReferenceSnapshot = { references: [] }
+/** Enough to keep a bulk action quick without flooding the local sidecar. */
+const BULK_CONCURRENCY = 4
 
 const listNavigation = (workspaceId: WorkspaceId) =>
   Effect.gen(function* () {
@@ -292,6 +294,66 @@ export const useLibraryData = (
     [refreshNavigation, refreshReferences, replaceReference, runMutation]
   )
 
+  /**
+   * A bulk action reports what actually happened: the run finishes even when
+   * some references fail, and the count of failures becomes the message.
+   */
+  const runBulk = useCallback(
+    async (
+      ids: ReadonlyArray<ReferenceId>,
+      operation: (
+        id: ReferenceId
+      ) => Effect.Effect<unknown, ApiFailure, ApiClient>,
+      failureMessage: (failed: number, total: number) => string
+    ) => {
+      if (ids.length === 0) return { succeeded: 0, failed: 0 } as const
+
+      setPending(true)
+      setActionError(null)
+
+      try {
+        const [failures] = await appRuntime.runPromise(
+          Effect.partition(ids, operation, { concurrency: BULK_CONCURRENCY })
+        )
+
+        if (failures.length > 0) {
+          setActionError(failureMessage(failures.length, ids.length))
+        }
+        await Promise.all([refreshNavigation(), refreshReferences()])
+
+        return {
+          succeeded: ids.length - failures.length,
+          failed: failures.length
+        } as const
+      } finally {
+        setPending(false)
+      }
+    },
+    [refreshNavigation, refreshReferences]
+  )
+
+  const updateMany = useCallback(
+    (ids: ReadonlyArray<ReferenceId>, patch: UpdateInspirationReference) =>
+      runBulk(
+        ids,
+        (id) => updateReference(id, patch),
+        (failed, total) =>
+          `${failed} of ${total} references could not be updated.`
+      ),
+    [runBulk]
+  )
+
+  const removeMany = useCallback(
+    (ids: ReadonlyArray<ReferenceId>) =>
+      runBulk(
+        ids,
+        removeReference,
+        (failed, total) =>
+          `${failed} of ${total} references could not be moved to trash.`
+      ),
+    [runBulk]
+  )
+
   const refresh = useCallback(
     () => Promise.all([refreshNavigation(), refreshReferences()]),
     [refreshNavigation, refreshReferences]
@@ -309,7 +371,9 @@ export const useLibraryData = (
     loadReference,
     createFolder: create,
     updateReference: update,
+    updateReferences: updateMany,
     removeReference: remove,
+    removeReferences: removeMany,
     enrichReference: enrich
   } as const
 }

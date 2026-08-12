@@ -95,6 +95,35 @@ following product-level direction:
   typing drives the library query so the grid behind the palette narrows to the
   results the palette lists. One palette carries references, folders, creation,
   settings, and workspace switching, so there is a single place to look for anything.
+- **A click opens the picture, not a form.** Selecting a reference in the grid
+  raises a full-viewport viewer on a near-black canvas — the `canvas` variant of
+  the shared dialog, so the treatment stays token-backed — with the arrows
+  walking the order the grid is showing. The inspector is no longer a
+  consequence of clicking: it starts collapsed and opens only from the titlebar
+  control or the viewer's `Details` button. A vault is for looking at imagery,
+  and the metadata is a question the user asks rather than one the app answers
+  unprompted.
+- **Selection is a gesture; the bulk bar is its only new chrome.** Press and hold
+  a reference to start a selection, then click to add and remove, `Shift`-click
+  for a run, and `Ctrl/Cmd`-click without leaving the gesture. Because a hold has
+  no keyboard equivalent, every card also carries a tick box that appears on
+  hover or focus. Selected cards take the documented lime ring; the actions
+  appear in a floating pill bar pinned bottom-centre, over the grid rather than
+  in place of the toolbar, so the references stay where the user left them.
+  `Esc` clears, `Ctrl/Cmd+A` takes everything the current view lists, and a
+  double-click still opens one reference without spending the selection.
+- **Metadata is edited where it is read.** Title, description, and tags in the
+  inspector become their own field on double-click — the rename gesture from the
+  file manager next to this app — and a keyboard activation opens the same
+  editor, since a keyboard cannot double-click. `Enter` saves, `Esc` cancels,
+  and the field states the rule it broke beneath itself instead of turning red.
+  Only the three fields the reference contract accepts are editable; dimensions,
+  size, type, and origin are facts, so they stay read-only.
+- **Zoom counts columns, not pixels.** The control runs from eight columns down
+  to one and reads out the count, and the masonry now honours each reference's
+  real proportions instead of flattening them toward a square. The layout toggle
+  is gone with it: masonry was the only view, so a permanently pressed button
+  said nothing.
 - **Fonts fall back to the system stack.** Inter and JetBrains Mono are named
   first, but no font files are bundled and the app's CSP (`default-src 'self'`)
   blocks remote font loading. Add the files under `apps/desktop/public` and an

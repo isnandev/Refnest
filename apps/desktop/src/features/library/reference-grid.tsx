@@ -1,37 +1,48 @@
 import type { InspirationReference, ReferenceId } from "@refnest/contracts"
-import { Check, CircleAlert, RefreshCw, SearchX } from "lucide-react"
+import { CircleAlert, RefreshCw, SearchX } from "lucide-react"
 import type { CSSProperties } from "react"
 
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-import { referenceAspectRatio } from "./library-format"
-import { ReferencePreview } from "./reference-preview"
+import { ReferenceCard } from "./reference-card"
+
+type MasonryStyle = CSSProperties & { "--reference-columns": number }
 
 export function ReferenceGrid({
   items,
-  selectedId,
-  zoom,
+  activeId,
+  selectedIds,
+  selectionMode,
+  columns,
   imageUrls,
   failedImages,
   loading,
   error,
   onRetry,
-  onSelect
+  onOpen,
+  onToggleSelect,
+  onExtendSelect
 }: {
   readonly items: ReadonlyArray<InspirationReference>
-  readonly selectedId: ReferenceId | null
-  readonly zoom: number
+  readonly activeId: ReferenceId | null
+  readonly selectedIds: ReadonlySet<ReferenceId>
+  readonly selectionMode: boolean
+  readonly columns: number
   readonly imageUrls: ReadonlyMap<ReferenceId, string>
   readonly failedImages: ReadonlySet<ReferenceId>
   readonly loading: boolean
   readonly error: string | null
   readonly onRetry: () => void
-  readonly onSelect: (item: InspirationReference) => void
+  readonly onOpen: (item: InspirationReference) => void
+  readonly onToggleSelect: (item: InspirationReference) => void
+  readonly onExtendSelect: (item: InspirationReference) => void
 }) {
+  const masonryStyle: MasonryStyle = { "--reference-columns": columns }
+
   if (loading && items.length === 0) {
     return (
       <div
         className="reference-masonry p-3"
+        style={masonryStyle}
         aria-busy="true"
         aria-label="Loading references"
       >
@@ -77,57 +88,28 @@ export function ReferenceGrid({
     )
   }
 
-  const gridStyle: CSSProperties & { "--reference-column-width": string } = {
-    columnGap: "12px",
-    "--reference-column-width": `${Math.round(126 * zoom)}px`
-  }
-
   return (
     <div
       className="reference-masonry p-3"
-      style={gridStyle}
+      style={masonryStyle}
       aria-label={`${items.length} reference thumbnails`}
       aria-busy={loading}
     >
-      {items.map((item, index) => {
-        const selected = item.id === selectedId
-
-        return (
-          <button
-            key={item.id}
-            type="button"
-            title={item.title}
-            aria-label={`Inspect ${item.title}`}
-            aria-pressed={selected}
-            className={cn(
-              "reference-card group relative mb-3 block w-full overflow-hidden rounded-sm border bg-surface text-left transition-[border-color,transform] duration-150 ease-out",
-              "hover:-translate-y-0.5 hover:border-input",
-              selected && "border-lime ring-2 ring-lime ring-offset-2 ring-offset-stage"
-            )}
-            style={{ aspectRatio: referenceAspectRatio(item) }}
-            onClick={() => onSelect(item)}
-          >
-            <ReferencePreview
-              reference={item}
-              url={imageUrls.get(item.id)}
-              failed={failedImages.has(item.id)}
-              alt=""
-              eager={index < 8}
-              className="size-full object-cover object-top transition-transform duration-200 ease-out group-hover:scale-[1.015]"
-            />
-
-            <span className="absolute bottom-1.5 left-1.5 max-w-[calc(100%-12px)] truncate rounded-full bg-surface-inverse/90 px-2 py-1 text-caption text-on-inverse opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
-              {item.title}
-            </span>
-
-            {selected && (
-              <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-lime text-on-lime">
-                <Check className="size-3" aria-hidden="true" />
-              </span>
-            )}
-          </button>
-        )
-      })}
+      {items.map((item, index) => (
+        <ReferenceCard
+          key={item.id}
+          item={item}
+          imageUrl={imageUrls.get(item.id)}
+          imageFailed={failedImages.has(item.id)}
+          selected={selectedIds.has(item.id)}
+          active={item.id === activeId}
+          selectionMode={selectionMode}
+          eager={index < 8}
+          onOpen={onOpen}
+          onToggleSelect={onToggleSelect}
+          onExtendSelect={onExtendSelect}
+        />
+      ))}
     </div>
   )
 }

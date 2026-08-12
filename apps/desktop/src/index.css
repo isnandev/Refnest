@@ -306,8 +306,12 @@
   height: 0;
 }
 
+/*
+ * Zoom sets the column count. The width keeps its say only as a floor: a
+ * narrow window drops columns rather than shaving them into slivers.
+ */
 .reference-masonry {
-  columns: var(--reference-column-width, 126px);
+  columns: 72px var(--reference-columns, 5);
   column-gap: 12px;
 }
 
@@ -356,6 +360,23 @@
 
 .library-zoom-slider {
   accent-color: var(--text-primary);
+}
+
+.library-bulk-bar {
+  box-shadow: 0 12px 32px rgb(0 0 0 / 20%);
+  animation: library-bulk-bar-in 180ms ease-out;
+}
+
+@keyframes library-bulk-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .library-inspector-column {
