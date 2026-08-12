@@ -14,18 +14,23 @@ handshake, and forwards one request at a time. Every domain rule, contract,
 validation, error, and piece of state lives in the Bun/Effect process. Moving a
 feature means editing TypeScript, not Rust.
 
-The initial scaffold retains the starter's workspace, notes, settings, and
-runtime-health flows as the baseline for RefNest's vault features.
+Workspace, notes, settings, and runtime-health flows form the application
+baseline; the reference library, capture pipeline, AI enrichment, and MCP
+access are RefNest's vault-specific features on top of it.
 
 ## Layout
 
-| Path                            | What lives there                                                     |
-| ------------------------------- | -------------------------------------------------------------------- |
-| `packages/contracts`            | Effect `Schema` models and the `HttpApi` definition — the wire truth  |
-| `apps/server`                   | The system: services, layers, typed errors, HTTP handlers             |
-| `apps/desktop/src-tauri`        | The Rust shell: sidecar supervision and the IPC proxy                 |
-| `apps/desktop/src`              | React + Tailwind v4 + shadcn/ui, driving a generated Effect client    |
-| `scripts`                       | Sidecar build and a headless smoke test of the whole chain            |
+| Path                                          | What lives there                                                     |
+| ---------------------------------------------- | -------------------------------------------------------------------- |
+| `packages/contracts`                           | Effect `Schema` models and the `HttpApi` definition — the wire truth  |
+| `apps/server`                                  | The system: services, layers, typed errors, HTTP handlers             |
+| `apps/server/src/features/{references,folders,smart-folders,quick-save}` | Library domain: reference CRUD, folders, smart folders, capture jobs |
+| `apps/server/src/features/{ai,assets}`         | AI provider settings/enrichment and hardened asset storage             |
+| `apps/server/src/mcp`                          | MCP tool/resource registration and the stdio bridge                   |
+| `apps/desktop/src-tauri`                       | The Rust shell: sidecar supervision and the IPC proxy                 |
+| `apps/desktop/src`                             | React + Tailwind v4 + shadcn/ui, driving a generated Effect client    |
+| `apps/desktop/src/features/library`            | Reference grid, folder tree, filters, inspector, quick save UI        |
+| `scripts`                                      | Sidecar build and a headless smoke test of the whole chain            |
 
 `RefNestApi` in `packages/contracts` is defined once. The server derives its
 handlers from it and the desktop derives its client from it, so a contract change
