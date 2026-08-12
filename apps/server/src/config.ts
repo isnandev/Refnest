@@ -9,9 +9,9 @@ import { Config, Effect, Redacted } from "effect"
  */
 export class SidecarConfig extends Effect.Service<SidecarConfig>()("SidecarConfig", {
   effect: Effect.gen(function* () {
-    const host = yield* Config.string("STARTER_SERVER_HOST").pipe(Config.withDefault("127.0.0.1"))
-    const port = yield* Config.integer("STARTER_SERVER_PORT").pipe(Config.withDefault(0))
-    const token = yield* Config.redacted("STARTER_SERVER_TOKEN").pipe(
+    const host = yield* Config.string("REFNEST_SERVER_HOST").pipe(Config.withDefault("127.0.0.1"))
+    const port = yield* Config.integer("REFNEST_SERVER_PORT").pipe(Config.withDefault(0))
+    const token = yield* Config.redacted("REFNEST_SERVER_TOKEN").pipe(
       Config.withDefault(Redacted.make(crypto.randomUUID()))
     )
 

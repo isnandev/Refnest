@@ -3,7 +3,7 @@ import {
   DEFAULT_DESKTOP_SETTINGS,
   DesktopSettings,
   UpdateDesktopSettings
-} from "@starter/contracts"
+} from "@refnest/contracts"
 import { Effect, Schema } from "effect"
 
 describe("desktop settings contracts", () => {

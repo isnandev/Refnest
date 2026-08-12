@@ -1,4 +1,4 @@
-import type { Workspace } from "@starter/contracts"
+import type { Workspace } from "@refnest/contracts"
 import { Check, ChevronDown, FolderPlus, Waypoints } from "lucide-react"
 import { useState } from "react"
 import { Popover } from "radix-ui"

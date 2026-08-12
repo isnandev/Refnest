@@ -1,9 +1,9 @@
 import { HttpApiBuilder } from "@effect/platform"
-import { StarterApi } from "@starter/contracts"
+import { RefNestApi } from "@refnest/contracts"
 import { Effect, Layer } from "effect"
 import { HealthService } from "./health-service"
 
-export const HealthHttpLive = HttpApiBuilder.group(StarterApi, "health", (handlers) =>
+export const HealthHttpLive = HttpApiBuilder.group(RefNestApi, "health", (handlers) =>
   Effect.gen(function* () {
     const health = yield* HealthService
 

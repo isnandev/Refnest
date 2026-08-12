@@ -1,4 +1,4 @@
-import { CreateNote, NOTE_BODY_MAX_LENGTH, NOTE_TITLE_MAX_LENGTH } from "@starter/contracts"
+import { CreateNote, NOTE_BODY_MAX_LENGTH, NOTE_TITLE_MAX_LENGTH } from "@refnest/contracts"
 import { Plus } from "lucide-react"
 import { type FormEvent, useState } from "react"
 import { Button } from "@/components/ui/button"

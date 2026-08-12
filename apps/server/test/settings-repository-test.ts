@@ -3,7 +3,7 @@ import {
   mergeDesktopSettings,
   type DesktopSettings,
   type UpdateDesktopSettings
-} from "@starter/contracts"
+} from "@refnest/contracts"
 import { Effect, Layer, Ref } from "effect"
 import { SettingsRepository } from "../src/features/settings/settings-repository"
 

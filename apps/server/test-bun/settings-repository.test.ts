@@ -5,10 +5,15 @@ import { join } from "node:path"
 import {
   UpdateDesktopSettings,
   WindowPlacement
-} from "@starter/contracts"
-import { Effect } from "effect"
+} from "@refnest/contracts"
+import { Effect, Layer } from "effect"
+import { applicationServicesLive } from "../src/application-services"
 import { SettingsRepository } from "../src/features/settings/settings-repository"
 import { settingsRepositoryLive } from "../src/features/settings/settings-repository-live"
+import {
+  SqliteDatabase,
+  sqliteDatabaseLive
+} from "../src/persistence/sqlite-database"
 
 const temporaryDirectories: Array<string> = []
 
@@ -21,6 +26,11 @@ afterEach(async () => {
 })
 
 describe("Bun SQLite settings repository", () => {
+  const live = (databasePath: string) =>
+    settingsRepositoryLive.pipe(
+      Layer.provideMerge(sqliteDatabaseLive(databasePath))
+    )
+
   it("survives closing and reopening the database", async () => {
     const directory = await mkdtemp(join(tmpdir(), "tauri-effect-settings-"))
     temporaryDirectories.push(directory)
@@ -44,14 +54,14 @@ describe("Bun SQLite settings repository", () => {
             })
           })
         )
-      }).pipe(Effect.provide(settingsRepositoryLive(databasePath)))
+      }).pipe(Effect.provide(live(databasePath)))
     )
 
     const reopened = await Effect.runPromise(
       Effect.gen(function* () {
         const settings = yield* SettingsRepository
         return yield* settings.get()
-      }).pipe(Effect.provide(settingsRepositoryLive(databasePath)))
+      }).pipe(Effect.provide(live(databasePath)))
     )
 
     expect(reopened.themePreference).toBe("dark")
@@ -66,6 +76,26 @@ describe("Bun SQLite settings repository", () => {
         height: 760,
         maximized: true
       })
+    )
+  })
+
+  it("uses the application-owned SQLite connection", async () => {
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const settings = yield* SettingsRepository
+          const { connection } = yield* SqliteDatabase
+
+          yield* settings.get()
+
+          const row = connection
+            .query<{ readonly count: number }, []>(
+              "SELECT COUNT(*) AS count FROM desktop_settings"
+            )
+            .get()
+          expect(row?.count).toBe(1)
+        }).pipe(Effect.provide(applicationServicesLive(":memory:")))
+      )
     )
   })
 })

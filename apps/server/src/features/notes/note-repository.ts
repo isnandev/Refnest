@@ -1,8 +1,8 @@
-import { CreateNote, Note, NoteId, NoteNotFound } from "@starter/contracts"
+import { CreateNote, Note, NoteId, NoteNotFound } from "@refnest/contracts"
 import { DateTime, Effect, Ref } from "effect"
 
 /**
- * In-memory on purpose: the starter demonstrates the seams, not a database.
+ * In-memory on purpose: the scaffold demonstrates the seams, not a database.
  * Swap this layer for a persistent one and nothing above it changes.
  */
 export class NoteRepository extends Effect.Service<NoteRepository>()("NoteRepository", {

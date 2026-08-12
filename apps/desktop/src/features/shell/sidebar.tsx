@@ -1,4 +1,4 @@
-import type { Workspace } from "@starter/contracts"
+import type { Workspace } from "@refnest/contracts"
 import {
   ChevronsLeft,
   ChevronsRight,

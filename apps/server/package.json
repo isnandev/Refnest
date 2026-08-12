@@ -1,18 +1,21 @@
 {
-  "name": "@starter/server",
+  "name": "@refnest/server",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "bun run --watch src/main.ts",
+    "mcp:stdio": "bun run src/mcp/stdio-bridge.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run --exclude 'test-bun/**' && bun test test-bun"
+    "test": "vitest run --exclude 'test-bun/**' --exclude 'test/*-http.test.ts' && bun test test-bun test/notes-http.test.ts test/settings-http.test.ts test/workspaces-http.test.ts"
   },
   "dependencies": {
     "@effect/platform": "^0.97.1",
     "@effect/platform-bun": "^0.91.2",
-    "@starter/contracts": "workspace:*",
-    "effect": "^3.22.1"
+    "@modelcontextprotocol/server": "^2.0.0",
+    "@refnest/contracts": "workspace:*",
+    "effect": "^3.22.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@effect/vitest": "^0.30.0",

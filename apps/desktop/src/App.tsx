@@ -1,30 +1,27 @@
 import {
   UpdateDesktopSettings,
-  type AppSection,
   type ThemePreference,
   type WorkspaceId
-} from "@starter/contracts"
-import { Moon, Sun } from "lucide-react"
+} from "@refnest/contracts"
 import { useCallback, useState } from "react"
 
-import { Button } from "@/components/ui/button"
-import { AppCommandMenu } from "@/features/commands/app-command-menu"
-import { NotesPage } from "@/features/notes/notes-page"
+import { ReferenceLibrary } from "@/features/library/reference-library"
 import { SettingsPage } from "@/features/settings/settings-page"
+import { useAiSettings } from "@/features/settings/use-ai-settings"
 import { useAppSettings } from "@/features/settings/use-app-settings"
-import { AppBreadcrumb } from "@/features/shell/app-breadcrumb"
-import { AppShell } from "@/features/shell/app-shell"
-import { useAppView } from "@/features/shell/use-app-view"
+import type { SidebarPreferences } from "@/features/shell/use-sidebar"
 import { useTheme } from "@/features/theme/use-theme"
-import { TitleBar } from "@/features/window/title-bar"
 import { useWindowPersistence } from "@/features/window/use-window-persistence"
 import { WorkspaceCreateModal } from "@/features/workspaces/workspace-create-modal"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 
 export default function App() {
   const appSettings = useAppSettings()
+  const aiSettings = useAiSettings()
   const settings = appSettings.settings
   const settingsReady = appSettings.status !== "loading"
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false)
 
   useWindowPersistence(
     settings.windowPlacement,
@@ -38,12 +35,6 @@ export default function App() {
     },
     [appSettings.update]
   )
-  const persistSection = useCallback(
-    (activeSection: AppSection) => {
-      appSettings.update(new UpdateDesktopSettings({ activeSection }))
-    },
-    [appSettings.update]
-  )
   const persistWorkspace = useCallback(
     (selectedWorkspaceId: WorkspaceId) => {
       appSettings.update(new UpdateDesktopSettings({ selectedWorkspaceId }))
@@ -51,102 +42,70 @@ export default function App() {
     [appSettings.update]
   )
   const persistSidebar = useCallback(
-    ({ width, collapsed }: { readonly width: number; readonly collapsed: boolean }) => {
+    ({ width }: SidebarPreferences) => {
       appSettings.update(
         new UpdateDesktopSettings({
           sidebarWidth: Math.round(width),
-          sidebarCollapsed: collapsed
+          sidebarCollapsed: false
         })
       )
     },
     [appSettings.update]
   )
 
-  const location = useAppView(
-    settings.activeSection,
-    settingsReady,
-    persistSection
-  )
   const theme = useTheme(settings.themePreference, persistTheme)
   const workspaces = useWorkspaces(
     settings.selectedWorkspaceId,
     settingsReady,
     persistWorkspace
   )
-  const [commandMenuOpen, setCommandMenuOpen] = useState(false)
-  const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false)
-
-  const openWorkspaceCreation = useCallback(() => {
-    workspaces.clearActionError()
-    setWorkspaceModalOpen(true)
-  }, [workspaces.clearActionError])
+  const aiEnabled =
+    aiSettings.state.status === "ready" && aiSettings.state.settings.enabled
 
   return (
-    <div className="h-screen overflow-hidden bg-transparent">
-      <a
-        href="#main-content"
-        className="fixed left-3 top-3 z-50 -translate-y-20 rounded-full bg-primary px-4 py-2 text-label text-primary-foreground transition-transform focus:translate-y-0"
-      >
-        Skip to content
-      </a>
-
-      <AppShell
-        activeSection={location.activeSection}
-        autoCollapseSidebar={settings.autoCollapseSidebar}
-        sidebarBackgroundOpacity={settings.sidebarBackgroundOpacity}
-        sidebarWidth={settings.sidebarWidth}
-        sidebarCollapsed={settings.sidebarCollapsed}
-        settingsReady={settingsReady}
-        workspaceState={workspaces.state}
-        selectedWorkspace={workspaces.selectedWorkspace}
-        onSelectWorkspace={workspaces.select}
-        onOpenCommandMenu={() => setCommandMenuOpen(true)}
-        onCreateWorkspace={openWorkspaceCreation}
-        onSidebarPreferencesChange={persistSidebar}
-        header={
-          <TitleBar leading={<AppBreadcrumb activeSection={location.activeSection} />}>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={theme.toggle}
-              aria-label={
-                theme.theme === "light"
-                  ? "Switch to dark theme"
-                  : "Switch to light theme"
-              }
-            >
-              {theme.theme === "light" ? (
-                <Moon aria-hidden="true" />
-              ) : (
-                <Sun aria-hidden="true" />
-              )}
-            </Button>
-          </TitleBar>
-        }
-      >
-        {location.view === "settings" ? (
-          <SettingsPage
-            resolvedTheme={theme.theme}
-            themePreference={theme.preference}
-            settings={settings}
-            saveError={appSettings.saveError}
-            onThemePreferenceChange={theme.setPreference}
-            onSettingChange={appSettings.update}
-            onReset={appSettings.resetPreferences}
-          />
-        ) : (
-          <NotesPage />
-        )}
-      </AppShell>
-
-      <AppCommandMenu
-        open={commandMenuOpen}
-        workspaceState={workspaces.state}
-        selectedWorkspace={workspaces.selectedWorkspace}
-        onOpenChange={setCommandMenuOpen}
-        onSelectWorkspace={workspaces.select}
-        onCreateWorkspace={openWorkspaceCreation}
-      />
+    <>
+      {settingsOpen ? (
+        <SettingsPage
+          resolvedTheme={theme.theme}
+          themePreference={theme.preference}
+          settings={settings}
+          saveError={appSettings.saveError}
+          aiState={aiSettings.state}
+          aiPending={aiSettings.pending}
+          aiActionError={aiSettings.actionError}
+          onThemePreferenceChange={theme.setPreference}
+          onSettingChange={appSettings.update}
+          onRetryAiSettings={() => void aiSettings.refresh()}
+          onSaveAiSettings={async (patch) =>
+            (await aiSettings.save(patch)) !== null
+          }
+          onReset={appSettings.resetPreferences}
+          onClose={() => setSettingsOpen(false)}
+        />
+      ) : (
+        <ReferenceLibrary
+          workspaceState={workspaces.state}
+          selectedWorkspace={workspaces.selectedWorkspace}
+          sidebarPreferences={{
+            width: settings.sidebarWidth,
+            collapsed: false
+          }}
+          settingsReady={settingsReady}
+          theme={theme.theme}
+          aiEnabled={aiEnabled}
+          onSelectWorkspace={workspaces.select}
+          onCreateWorkspace={() => {
+            workspaces.clearActionError()
+            setWorkspaceModalOpen(true)
+          }}
+          onSidebarPreferencesChange={persistSidebar}
+          onOpenSettings={() => {
+            aiSettings.clearActionError()
+            setSettingsOpen(true)
+          }}
+          onToggleTheme={theme.toggle}
+        />
+      )}
 
       <WorkspaceCreateModal
         open={workspaceModalOpen}
@@ -155,6 +114,6 @@ export default function App() {
         onOpenChange={setWorkspaceModalOpen}
         onCreate={workspaces.create}
       />
-    </div>
+    </>
   )
 }

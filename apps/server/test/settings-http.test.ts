@@ -1,17 +1,21 @@
-import { describe, expect, it } from "@effect/vitest"
-import { Effect } from "effect"
+import { describe, expect, it } from "bun:test"
+import { DesktopSettings } from "@refnest/contracts"
+import { Effect, Schema } from "effect"
 import { jsonRequest, webHandler } from "./api-test-client"
 
 describe("settings over HTTP", () => {
-  it.scoped("loads defaults and merges typed updates", () =>
-    Effect.gen(function* () {
+  it("loads defaults and merges typed updates", async () => {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
       const { handler } = yield* webHandler
 
       const initial = yield* Effect.promise(() =>
         handler(jsonRequest("GET", "/settings"))
       )
       expect(initial.status).toBe(200)
-      expect(yield* Effect.promise(() => initial.json())).toMatchObject({
+      const initialSettings = yield* Effect.promise(() => initial.json()).pipe(
+        Effect.flatMap(Schema.decodeUnknown(DesktopSettings))
+      )
+      expect(initialSettings).toMatchObject({
         themePreference: "system",
         sidebarBackgroundOpacity: 60,
         windowPlacement: null
@@ -34,7 +38,10 @@ describe("settings over HTTP", () => {
         )
       )
       expect(updated.status).toBe(200)
-      expect(yield* Effect.promise(() => updated.json())).toMatchObject({
+      const updatedSettings = yield* Effect.promise(() => updated.json()).pipe(
+        Effect.flatMap(Schema.decodeUnknown(DesktopSettings))
+      )
+      expect(updatedSettings).toMatchObject({
         themePreference: "dark",
         activeSection: "settings",
         sidebarBackgroundOpacity: 80,
@@ -44,14 +51,18 @@ describe("settings over HTTP", () => {
       const reloaded = yield* Effect.promise(() =>
         handler(jsonRequest("GET", "/settings"))
       )
-      expect(yield* Effect.promise(() => reloaded.json())).toMatchObject({
+      const reloadedSettings = yield* Effect.promise(() => reloaded.json()).pipe(
+        Effect.flatMap(Schema.decodeUnknown(DesktopSettings))
+      )
+      expect(reloadedSettings).toMatchObject({
         themePreference: "dark",
         sidebarBackgroundOpacity: 80
       })
-    }))
+    })))
+  })
 
-  it.scoped("rejects an out-of-range update at the HTTP boundary", () =>
-    Effect.gen(function* () {
+  it("rejects an out-of-range update at the HTTP boundary", async () => {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
       const { handler } = yield* webHandler
       const response = yield* Effect.promise(() =>
         handler(
@@ -62,6 +73,7 @@ describe("settings over HTTP", () => {
       )
 
       expect(response.status).toBe(400)
-    }))
+    })))
+  })
 
 })

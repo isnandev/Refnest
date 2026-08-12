@@ -13,10 +13,10 @@ use tauri_plugin_shell::ShellExt;
 use tokio::sync::watch;
 
 /// Matches `externalBin` in tauri.conf.json and the output of `bun run sidecar:build`.
-const SIDECAR_BIN: &str = "starter-server";
+const SIDECAR_BIN: &str = "refnest-server";
 
-/// Must match `HANDSHAKE_PREFIX` in `@starter/contracts`.
-const HANDSHAKE_PREFIX: &str = "@starter/handshake ";
+/// Must match `HANDSHAKE_PREFIX` in `@refnest/contracts`.
+const HANDSHAKE_PREFIX: &str = "@refnest/handshake ";
 
 const READY_TIMEOUT: Duration = Duration::from_secs(20);
 
@@ -59,7 +59,7 @@ impl Sidecar {
             .shell()
             .sidecar(SIDECAR_BIN)
             .map_err(|error| format!("could not resolve the {SIDECAR_BIN} sidecar: {error}"))?
-            .env("STARTER_DATABASE_PATH", &database_path)
+            .env("REFNEST_DATABASE_PATH", &database_path)
             .spawn()
             .map_err(|error| format!("could not start the {SIDECAR_BIN} sidecar: {error}"))?;
 

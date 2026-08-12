@@ -1,4 +1,4 @@
-import type { WorkspaceDirectoryListing } from "@starter/contracts"
+import type { WorkspaceDirectoryListing } from "@refnest/contracts"
 import { Effect } from "effect"
 import { useCallback, useState } from "react"
 

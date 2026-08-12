@@ -1,6 +1,6 @@
 {
   "context": ["profile", "engineering", "product", "design", "lessons"],
   "design": "DESIGN.md",
-  "name": "tauri-effect-starter",
+  "name": "RefNest",
   "schemaVersion": 1
 }

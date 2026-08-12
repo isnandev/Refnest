@@ -1,7 +1,7 @@
-import type { AppSection } from "@starter/contracts"
+import type { AppSection } from "@refnest/contracts"
 import { useEffect, useRef, useState } from "react"
 
-export type { AppSection } from "@starter/contracts"
+export type { AppSection } from "@refnest/contracts"
 export type AppView = "notes" | "settings"
 export type NotesSection = Exclude<AppSection, "settings">
 

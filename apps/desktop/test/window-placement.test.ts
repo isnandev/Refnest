@@ -1,4 +1,4 @@
-import { WindowPlacement } from "@starter/contracts"
+import { WindowPlacement } from "@refnest/contracts"
 import { describe, expect, it } from "vitest"
 
 import { normalizeWindowPlacementForMonitors } from "@/features/window/window-placement"

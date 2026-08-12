@@ -1,4 +1,4 @@
-import type { HealthReport } from "@starter/contracts"
+import type { HealthReport } from "@refnest/contracts"
 import { Effect } from "effect"
 import { useCallback, useEffect, useState } from "react"
 import { ApiClient } from "@/lib/api/client"

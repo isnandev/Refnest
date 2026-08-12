@@ -2,7 +2,7 @@ import type {
   CreateWorkspace,
   Workspace,
   WorkspaceId
-} from "@starter/contracts"
+} from "@refnest/contracts"
 import { Effect } from "effect"
 import { useCallback, useEffect, useMemo, useState } from "react"
 

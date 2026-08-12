@@ -1,4 +1,4 @@
-import type { NoteId } from "@starter/contracts"
+import type { NoteId } from "@refnest/contracts"
 import { CircleAlert, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatTimestamp } from "@/lib/format"

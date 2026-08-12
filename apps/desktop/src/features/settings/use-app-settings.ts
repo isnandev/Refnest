@@ -3,7 +3,7 @@ import {
   mergeDesktopSettings,
   UpdateDesktopSettings,
   type DesktopSettings
-} from "@starter/contracts"
+} from "@refnest/contracts"
 import { Effect } from "effect"
 import { useCallback, useEffect, useRef, useState } from "react"
 

@@ -1,4 +1,4 @@
-import type { CreateNote, Note, NoteId } from "@starter/contracts"
+import type { CreateNote, Note, NoteId } from "@refnest/contracts"
 import { Effect } from "effect"
 import { useCallback, useEffect, useState } from "react"
 import { ApiClient } from "@/lib/api/client"

@@ -1,8 +1,8 @@
-import type { ThemePreference } from "@starter/contracts"
+import type { ThemePreference } from "@refnest/contracts"
 import { useCallback, useEffect, useState } from "react"
 
 export type Theme = "light" | "dark"
-export type { ThemePreference } from "@starter/contracts"
+export type { ThemePreference } from "@refnest/contracts"
 
 const systemTheme = (): Theme =>
   window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
@@ -28,6 +28,7 @@ export const useTheme = (
 
   useEffect(() => {
     document.documentElement.dataset["theme"] = theme
+    document.documentElement.classList.toggle("dark", theme === "dark")
   }, [theme])
 
   const toggle = useCallback(() => {

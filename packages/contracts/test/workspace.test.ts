@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { BrowseWorkspaceDirectory, CreateWorkspace, Workspace } from "@starter/contracts"
+import { BrowseWorkspaceDirectory, CreateWorkspace, Workspace } from "@refnest/contracts"
 import { DateTime, Effect, Schema } from "effect"
 
 describe("workspace contracts", () => {

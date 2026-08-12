@@ -18,7 +18,7 @@ export const SIDECAR_BASE_URL = "http://sidecar.local"
 interface ProxyResponse {
   readonly status: number
   readonly headers: Record<string, string>
-  readonly body: string
+  readonly body: ReadonlyArray<number>
 }
 
 /** Statuses the Fetch spec forbids a body on; `Response` throws if one is supplied. */
@@ -80,7 +80,9 @@ export const TauriHttpClient = HttpClient.make((request, url) =>
     return HttpClientResponse.fromWeb(
       request,
       new Response(
-        NULL_BODY_STATUSES.has(proxy.status) || proxy.body.length === 0 ? null : proxy.body,
+        NULL_BODY_STATUSES.has(proxy.status) || proxy.body.length === 0
+          ? null
+          : Uint8Array.from(proxy.body),
         { status: proxy.status, headers: proxy.headers }
       )
     )

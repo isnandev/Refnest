@@ -1,10 +1,10 @@
 import { HttpApiBuilder } from "@effect/platform"
-import { StarterApi } from "@starter/contracts"
-import { Effect, Layer } from "effect"
+import { RefNestApi } from "@refnest/contracts"
+import { Effect } from "effect"
 import { WorkspaceRepository } from "./workspace-repository"
 
 export const WorkspacesHttpLive = HttpApiBuilder.group(
-  StarterApi,
+  RefNestApi,
   "workspaces",
   (handlers) =>
     Effect.gen(function* () {
@@ -15,4 +15,4 @@ export const WorkspacesHttpLive = HttpApiBuilder.group(
         .handle("browse", ({ urlParams }) => workspaces.browse(urlParams))
         .handle("create", ({ payload }) => workspaces.create(payload))
     })
-).pipe(Layer.provide(WorkspaceRepository.Default))
+)

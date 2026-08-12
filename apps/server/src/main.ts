@@ -1,9 +1,9 @@
 import { HttpApiBuilder, HttpServer } from "@effect/platform"
 import { BunHttpServer, BunRuntime } from "@effect/platform-bun"
-import { encodeHandshakeLine, Handshake } from "@starter/contracts"
+import { encodeHandshakeLine, Handshake } from "@refnest/contracts"
 import { Console, Effect, Layer, Redacted } from "effect"
 import { SidecarConfig } from "./config"
-import { settingsRepositoryLive } from "./features/settings/settings-repository-live"
+import { applicationServicesLive } from "./application-services"
 import { ApiLive } from "./http/api"
 import { withBearerAuth } from "./http/auth"
 
@@ -15,9 +15,9 @@ const BunServerLive = Layer.unwrapEffect(
   })
 )
 
-const databasePath = process.env["STARTER_DATABASE_PATH"]?.trim() || ":memory:"
+const databasePath = process.env["REFNEST_DATABASE_PATH"]?.trim() || ":memory:"
 const ApiWithPersistenceLive = ApiLive.pipe(
-  Layer.provide(settingsRepositoryLive(databasePath))
+  Layer.provide(applicationServicesLive(databasePath))
 )
 
 const HttpLive = HttpApiBuilder.serve(withBearerAuth).pipe(

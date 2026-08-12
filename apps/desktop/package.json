@@ -1,5 +1,5 @@
 {
-  "name": "@starter/desktop",
+  "name": "@refnest/desktop",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -16,8 +16,9 @@
   "dependencies": {
     "@effect/platform": "^0.97.1",
     "@radix-ui/react-slot": "^1.2.4",
-    "@starter/contracts": "workspace:*",
+    "@refnest/contracts": "workspace:*",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

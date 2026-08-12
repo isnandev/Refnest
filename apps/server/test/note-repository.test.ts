@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { CreateNote, NoteId } from "@starter/contracts"
+import { CreateNote, NoteId } from "@refnest/contracts"
 import { Effect } from "effect"
 import { NoteRepository } from "../src/features/notes/note-repository"
 

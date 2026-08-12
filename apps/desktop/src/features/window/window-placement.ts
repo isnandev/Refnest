@@ -2,7 +2,7 @@ import {
   WINDOW_HEIGHT_MIN,
   WINDOW_WIDTH_MIN,
   WindowPlacement
-} from "@starter/contracts"
+} from "@refnest/contracts"
 
 export type MonitorWorkArea = {
   readonly position: { readonly x: number; readonly y: number }

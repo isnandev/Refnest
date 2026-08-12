@@ -25,7 +25,7 @@ pub struct ApiRequest {
 pub struct ApiResponse {
     pub status: u16,
     pub headers: HashMap<String, String>,
-    pub body: String,
+    pub body: Vec<u8>,
 }
 
 #[derive(Default)]
@@ -46,10 +46,7 @@ impl ApiProxy {
         let method = parse_method(&request.method)?;
         let url = resolve_url(&endpoint.base_url, &request.path)?;
 
-        let mut outgoing = self
-            .http
-            .request(method, url)
-            .bearer_auth(&endpoint.token);
+        let mut outgoing = self.http.request(method, url).bearer_auth(&endpoint.token);
 
         for (name, value) in request.headers {
             // The token is the shell's to set; a webview must not override it.
@@ -81,9 +78,10 @@ impl ApiProxy {
             })
             .collect();
         let body = response
-            .text()
+            .bytes()
             .await
-            .map_err(|error| format!("could not read the sidecar response: {error}"))?;
+            .map_err(|error| format!("could not read the sidecar response: {error}"))?
+            .to_vec();
 
         Ok(ApiResponse {
             status,

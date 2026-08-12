@@ -1,9 +1,9 @@
 import { HttpApiBuilder } from "@effect/platform"
-import { StarterApi } from "@starter/contracts"
+import { RefNestApi } from "@refnest/contracts"
 import { Effect, Layer } from "effect"
 import { NoteRepository } from "./note-repository"
 
-export const NotesHttpLive = HttpApiBuilder.group(StarterApi, "notes", (handlers) =>
+export const NotesHttpLive = HttpApiBuilder.group(RefNestApi, "notes", (handlers) =>
   Effect.gen(function* () {
     const notes = yield* NoteRepository
 

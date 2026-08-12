@@ -1,12 +1,12 @@
-import type { Workspace } from "@starter/contracts"
+import type { Workspace } from "@refnest/contracts"
 import type { ReactNode } from "react"
 
 import type { WorkspacesState } from "@/features/workspaces/use-workspaces"
 import { cn } from "@/lib/utils"
 import { Sidebar } from "./sidebar"
+import { SidebarResizeHandle } from "./sidebar-resize-handle"
 import type { AppSection } from "./use-app-view"
 import {
-  SIDEBAR,
   useSidebar,
   type SidebarPreferences
 } from "./use-sidebar"
@@ -74,32 +74,16 @@ export function AppShell({
         onToggle={sidebar.toggle}
       />
 
-      {!sidebar.collapsed ? (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize sidebar"
-          aria-valuemin={SIDEBAR.minWidth}
-          aria-valuemax={SIDEBAR.maxWidth}
-          aria-valuenow={sidebar.width}
-          tabIndex={0}
-          onPointerDown={sidebar.startResize}
-          onPointerMove={sidebar.resize}
-          onPointerUp={sidebar.endResize}
-          onPointerCancel={sidebar.endResize}
-          onKeyDown={sidebar.onDividerKeyDown}
-          className={cn(
-            "relative z-10 w-px shrink-0 cursor-col-resize touch-none outline-none",
-            "after:absolute after:inset-y-0 after:-left-2 after:w-[17px]",
-            "before:absolute before:inset-y-0 before:left-0 before:w-px before:transition-colors",
-            sidebar.dragging
-              ? "before:bg-primary"
-              : "before:bg-border hover:before:bg-primary/40"
-          )}
-        />
-      ) : (
-        <div className="w-px shrink-0 bg-border" aria-hidden="true" />
-      )}
+      <SidebarResizeHandle
+        collapsed={sidebar.collapsed}
+        dragging={sidebar.dragging}
+        width={sidebar.width}
+        onPointerDown={sidebar.startResize}
+        onPointerMove={sidebar.resize}
+        onPointerUp={sidebar.endResize}
+        onPointerCancel={sidebar.endResize}
+        onKeyDown={sidebar.onDividerKeyDown}
+      />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-surface">
         {header}

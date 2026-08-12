@@ -5,7 +5,7 @@ import { Effect, Schema } from "effect"
  * The Rust shell scans stdout for this prefix, parses the JSON that follows, and
  * keeps the token in the host process — it never reaches the webview.
  */
-export const HANDSHAKE_PREFIX = "@starter/handshake "
+export const HANDSHAKE_PREFIX = "@refnest/handshake "
 
 export class Handshake extends Schema.Class<Handshake>("Handshake")({
   host: Schema.NonEmptyTrimmedString,

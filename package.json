@@ -1,21 +1,22 @@
 {
-  "name": "tauri-effect-starter",
+  "name": "refnest",
   "private": true,
   "type": "module",
   "version": "0.1.0",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "dev": "bun run sidecar:build && bun run --filter @starter/desktop tauri:dev",
-    "build": "bun run sidecar:build && bun run --filter @starter/desktop tauri:build",
+    "dev": "bun run sidecar:build && bun run --filter @refnest/desktop tauri:dev",
+    "build": "bun run sidecar:build && bun run --filter @refnest/desktop tauri:build",
     "sidecar:build": "bun scripts/build-sidecar.ts",
-    "server:dev": "bun run --filter @starter/server dev",
+    "server:dev": "bun run --filter @refnest/server dev",
+    "mcp:stdio": "bun run --filter @refnest/server mcp:stdio",
     "smoke": "bun scripts/smoke-sidecar.ts",
-    "typecheck": "tsc -p tsconfig.json && bun run --filter '@starter/*' typecheck",
-    "test": "bun run --filter '@starter/*' test",
+    "typecheck": "tsc -p tsconfig.json && bun run --filter '@refnest/*' typecheck",
+    "test": "bun run --filter '@refnest/*' test",
     "check:rust": "cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml"
   },
   "dependencies": {
-    "@starter/contracts": "workspace:*",
+    "@refnest/contracts": "workspace:*",
     "effect": "^3.22.1"
   },
   "devDependencies": {

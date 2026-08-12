@@ -1,10 +1,10 @@
 import { HttpApiBuilder } from "@effect/platform"
-import { StarterApi } from "@starter/contracts"
+import { RefNestApi } from "@refnest/contracts"
 import { Effect } from "effect"
 import { SettingsRepository } from "./settings-repository"
 
 export const SettingsHttpLive = HttpApiBuilder.group(
-  StarterApi,
+  RefNestApi,
   "settings",
   (handlers) =>
     Effect.gen(function* () {

@@ -2,7 +2,7 @@ import {
   CreateWorkspace,
   WORKSPACE_NAME_MAX_LENGTH,
   type Workspace
-} from "@starter/contracts"
+} from "@refnest/contracts"
 import { CircleAlert, FolderPlus, LoaderCircle } from "lucide-react"
 import { type FormEvent, useEffect, useState } from "react"
 

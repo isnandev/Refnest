@@ -1,4 +1,4 @@
-import { HealthReport } from "@starter/contracts"
+import { HealthReport } from "@refnest/contracts"
 import { Clock, Effect } from "effect"
 import { RUNTIME_LABEL, SERVER_VERSION } from "../../version"
 

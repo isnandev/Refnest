@@ -1,10 +1,11 @@
-import { describe, expect, it } from "@effect/vitest"
-import { Effect } from "effect"
+import { describe, expect, it } from "bun:test"
+import { Note } from "@refnest/contracts"
+import { Effect, Schema } from "effect"
 import { jsonRequest, webHandler } from "./api-test-client"
 
 describe("notes over HTTP", () => {
-  it.scoped("serves the full note lifecycle with contract-derived status codes", () =>
-    Effect.gen(function* () {
+  it("serves the full note lifecycle with contract-derived status codes", async () => {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
       const { handler } = yield* webHandler
 
       const empty = yield* Effect.promise(() => handler(jsonRequest("GET", "/notes")))
@@ -15,7 +16,9 @@ describe("notes over HTTP", () => {
         handler(jsonRequest("POST", "/notes", { title: "Wire the sidecar", body: "bun -> rust -> app" }))
       )
       expect(created.status).toBe(201)
-      const note = (yield* Effect.promise(() => created.json())) as { id: string; title: string }
+      const note = yield* Effect.promise(() => created.json()).pipe(
+        Effect.flatMap(Schema.decodeUnknown(Note))
+      )
       expect(note.title).toBe("Wire the sidecar")
 
       const fetched = yield* Effect.promise(() => handler(jsonRequest("GET", `/notes/${note.id}`)))
@@ -26,25 +29,28 @@ describe("notes over HTTP", () => {
 
       const missing = yield* Effect.promise(() => handler(jsonRequest("GET", `/notes/${note.id}`)))
       expect(missing.status).toBe(404)
-    }))
+    })))
+  })
 
-  it.scoped("rejects a payload that violates the contract", () =>
-    Effect.gen(function* () {
+  it("rejects a payload that violates the contract", async () => {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
       const { handler } = yield* webHandler
 
       const response = yield* Effect.promise(() =>
         handler(jsonRequest("POST", "/notes", { title: "   ", body: "" }))
       )
       expect(response.status).toBe(400)
-    }))
+    })))
+  })
 
-  it.scoped("reports health", () =>
-    Effect.gen(function* () {
+  it("reports health", async () => {
+    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
       const { handler } = yield* webHandler
 
       const response = yield* Effect.promise(() => handler(jsonRequest("GET", "/health")))
       expect(response.status).toBe(200)
-      const report = (yield* Effect.promise(() => response.json())) as { status: string }
-      expect(report.status).toBe("ok")
-    }))
+      const report = yield* Effect.promise(() => response.json())
+      expect(report).toMatchObject({ status: "ok" })
+    })))
+  })
 })

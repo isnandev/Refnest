@@ -2,7 +2,7 @@ import {
   UpdateDesktopSettings,
   WindowPlacement,
   type DesktopSettings
-} from "@starter/contracts"
+} from "@refnest/contracts"
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi"
 import {
   availableMonitors,
@@ -121,7 +121,7 @@ export const useWindowPersistence = (
         persistCurrentPlacement(),
         after(CLOSE_SAVE_TIMEOUT_MS)
       ])
-      await appWindow.close()
+      await appWindow.destroy()
     }
 
     const addListener = async (listener: Promise<() => void>) => {

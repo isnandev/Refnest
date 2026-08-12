@@ -7,7 +7,7 @@ describe("Note contract", () => {
     Effect.gen(function* () {
       const note = new Note({
         id: NoteId.make("note_1"),
-        title: "Ship the starter",
+        title: "Curate visual references",
         body: "Bun owns the system, Rust owns the window.",
         createdAt: DateTime.unsafeMake("2026-08-10T00:00:00.000Z")
       })

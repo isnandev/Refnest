@@ -25,7 +25,7 @@ export function TitleBar({
   return (
     <header
       data-tauri-drag-region
-      className="relative z-30 flex h-[52px] shrink-0 items-stretch justify-between bg-surface select-none"
+      className="relative z-30 flex h-[52px] shrink-0 items-stretch justify-between select-none"
     >
       <div data-tauri-drag-region className="flex min-w-0 flex-1 items-center px-4">
         {leading}

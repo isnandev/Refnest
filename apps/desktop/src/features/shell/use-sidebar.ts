@@ -1,7 +1,7 @@
 import {
   SIDEBAR_WIDTH_MAX,
   SIDEBAR_WIDTH_MIN
-} from "@starter/contracts"
+} from "@refnest/contracts"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { KeyboardEvent, PointerEvent } from "react"
 

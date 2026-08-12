@@ -17,7 +17,9 @@ describe("TauriHttpClient", () => {
       invoke.mockResolvedValueOnce({
         status: 200,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify([{ id: "note_1" }])
+        body: Array.from(
+          new TextEncoder().encode(JSON.stringify([{ id: "note_1" }]))
+        )
       })
 
       const response = yield* TauriHttpClient.execute(
@@ -36,7 +38,7 @@ describe("TauriHttpClient", () => {
 
   it.effect("keeps a 204 response body-less instead of throwing", () =>
     Effect.gen(function* () {
-      invoke.mockResolvedValueOnce({ status: 204, headers: {}, body: "" })
+      invoke.mockResolvedValueOnce({ status: 204, headers: {}, body: [] })
 
       const response = yield* TauriHttpClient.execute(
         HttpClientRequest.del(`${SIDECAR_BASE_URL}/notes/note_1`)
@@ -54,5 +56,22 @@ describe("TauriHttpClient", () => {
       ).pipe(Effect.flip)
 
       expect(error._tag).toBe("RequestError")
+    }))
+
+  it.effect("preserves arbitrary binary response bytes", () =>
+    Effect.gen(function* () {
+      invoke.mockResolvedValueOnce({
+        status: 200,
+        headers: { "content-type": "application/octet-stream" },
+        body: [0, 255, 17, 128]
+      })
+
+      const response = yield* TauriHttpClient.execute(
+        HttpClientRequest.get(`${SIDECAR_BASE_URL}/binary`)
+      )
+
+      expect(new Uint8Array(yield* response.arrayBuffer)).toStrictEqual(
+        new Uint8Array([0, 255, 17, 128])
+      )
     }))
 })

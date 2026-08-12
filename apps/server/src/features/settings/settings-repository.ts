@@ -2,7 +2,7 @@ import {
   type DesktopSettings,
   type SettingsPersistenceFailed,
   type UpdateDesktopSettings
-} from "@starter/contracts"
+} from "@refnest/contracts"
 import { Context, type Effect } from "effect"
 
 export type SettingsRepositoryShape = {
