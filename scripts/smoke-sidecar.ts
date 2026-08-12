@@ -115,6 +115,97 @@ try {
     })
   })
   await call("reload settings", "/settings", { headers: authorized })
+  await call("list libraries", "/environments", { headers: authorized })
+  await call("read sharing status", "/sharing", { headers: authorized })
+
+  // Turn the LAN listener on for real, pair a device against it, and use the
+  // issued token — the whole cross-device path, in one compiled binary.
+  const sharePort = 41_317
+  await call("enable sharing", "/sharing", {
+    method: "PUT",
+    headers: { ...authorized, "content-type": "application/json" },
+    body: JSON.stringify({ enabled: true, port: sharePort })
+  })
+
+  // Regression guard: the share listener must create its own server rather
+  // than resolving the device listener's and reloading its handler. When it got
+  // that wrong, every loopback request started answering 401.
+  const deviceStillAuthorized = await call("device listener after sharing starts", "/environments", {
+    headers: authorized
+  })
+  if (deviceStillAuthorized.status !== 200) {
+    throw new Error(
+      `enabling sharing broke the device listener (${deviceStillAuthorized.status})`
+    )
+  }
+
+  const shareBaseUrl = `http://127.0.0.1:${sharePort}`
+  const inviteResponse = await fetch(`${baseUrl}/sharing/invites`, {
+    method: "POST",
+    headers: authorized
+  })
+  const inviteBody = await inviteResponse.text()
+  if (inviteResponse.status !== 201) {
+    throw new Error(
+      `pairing invite failed with ${inviteResponse.status}: ${inviteBody}`
+    )
+  }
+  const invite = JSON.parse(inviteBody) as { readonly code: string }
+  checks.push(["issue pairing code", inviteResponse.status, { code: invite.code }])
+
+  const grantResponse = await fetch(`${shareBaseUrl}/pair`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      code: invite.code,
+      deviceName: "Smoke laptop",
+      platform: process.platform
+    })
+  })
+  const grantBody = await grantResponse.text()
+  if (grantResponse.status !== 201) {
+    throw new Error(
+      `pairing redemption failed with ${grantResponse.status}: ${grantBody}`
+    )
+  }
+  const grant = JSON.parse(grantBody) as { readonly token: string }
+  checks.push(["redeem pairing code", grantResponse.status, { paired: true }])
+
+  const shared = { authorization: `Bearer ${grant.token}` }
+  const sharedWorkspaces = await fetch(`${shareBaseUrl}/workspaces`, {
+    headers: shared
+  })
+  if (sharedWorkspaces.status !== 200) {
+    throw new Error(
+      `the LAN listener refused a paired device (${sharedWorkspaces.status})`
+    )
+  }
+  checks.push([
+    "list workspaces over the LAN listener",
+    sharedWorkspaces.status,
+    await sharedWorkspaces.json()
+  ])
+
+  // Host-only, and absent from the shared contract rather than merely denied.
+  const sharedSettings = await fetch(`${shareBaseUrl}/settings`, {
+    headers: shared
+  })
+  if (sharedSettings.status !== 404) {
+    throw new Error(
+      `host-only settings answered over the LAN with ${sharedSettings.status}`
+    )
+  }
+  checks.push([
+    "host-only settings are unreachable over the LAN",
+    sharedSettings.status,
+    { expected: 404 }
+  ])
+
+  await call("disable sharing", "/sharing", {
+    method: "PUT",
+    headers: { ...authorized, "content-type": "application/json" },
+    body: JSON.stringify({ enabled: false })
+  })
 
   const initializeRequest = {
     jsonrpc: "2.0",
@@ -206,11 +297,18 @@ try {
     console.log(`${status}  ${label}`)
   }
 
-  const failed = checks.filter(([label, status]) =>
-    label === "health without token" || label === "MCP without token"
-      ? status !== 401
-      : status >= 400
-  )
+  // Checks that are only meaningful when they are refused. Everything else
+  // simply has to succeed.
+  const expectedStatus: Record<string, number> = {
+    "health without token": 401,
+    "MCP without token": 401,
+    "host-only settings are unreachable over the LAN": 404
+  }
+
+  const failed = checks.filter(([label, status]) => {
+    const expected = expectedStatus[label]
+    return expected === undefined ? status >= 400 : status !== expected
+  })
 
   if (
     failed.length > 0 ||

@@ -9,10 +9,14 @@ React + shadcn/ui  ──invoke──▶  Rust shell  ──HTTP (loopback + tok
      (webview)                  (transport)                                 (the system)
 ```
 
-Rust does three things and nothing else: it spawns the Bun sidecar, reads its
-handshake, and forwards one request at a time. Every domain rule, contract,
-validation, error, and piece of state lives in the Bun/Effect process. Moving a
-feature means editing TypeScript, not Rust.
+Rust does four things and nothing else: it spawns the Bun sidecar, reads its
+handshake, forwards one request at a time, and remembers which library
+"forward" currently means. Every domain rule, contract, validation, error, and
+piece of state lives in the Bun/Effect process. Moving a feature means editing
+TypeScript, not Rust.
+
+That fourth job exists so RefNest can browse a library on another machine. See
+`ENVIRONMENTS.md`.
 
 Workspace, notes, settings, and runtime-health flows form the application
 baseline; the reference library, capture pipeline, AI enrichment, and MCP
@@ -81,6 +85,12 @@ on the server alone.
    bearer token, and returns the response verbatim.
 
 Anything else on the machine that finds the port still gets a `401`.
+
+`api_request` goes to whichever library is active; `api_request_local` always
+goes to the sidecar this device spawned, which is where desktop settings, the
+saved-library list, and sharing live. `activate_environment` takes an id, never
+an address or a token: the shell reads the credential for a saved library from
+the local sidecar over loopback, so it never reaches the webview.
 
 ## MCP access
 
@@ -160,8 +170,13 @@ Resources use `refnest://workspace/{workspaceId}`,
 2. Add a service and its layer under `apps/server/src/features/<feature>/`, and a
    thin `HttpApiBuilder.group` handler beside it.
 3. Register the group in `apps/server/src/http/api.ts`.
-4. Add a hook under `apps/desktop/src/features/<feature>/` that calls the
+4. Decide whether a device on the local network may reach it. If so, add the
+   group to `RefNestSharedApi` and register a second handler layer in
+   `apps/server/src/http/shared-api.ts` — the wiring is per-API, the service is
+   not. If not, do nothing: absent is the default, and the safe one.
+5. Add a hook under `apps/desktop/src/features/<feature>/` that calls the
    generated client through `appRuntime`, and keep the components render-only.
+   Use `LocalApiClient` instead when the endpoint describes *this device*.
 
 The Rust shell does not change for domain features.
 
@@ -177,10 +192,17 @@ On Windows, the default location is:
 %LOCALAPPDATA%\studio.mavolo.refnest\settings.sqlite3
 ```
 
-The saved document includes theme, sidebar appearance and width, the selected
-workspace, the last active page, and native window position, size, and maximized
-state. Window bounds are checked against currently connected monitors before they
-are restored.
+The saved document includes theme, sidebar appearance and width, the last active
+page, native window position, size, and maximized state, which library is active,
+and the selected workspace *per library* — a workspace id only means something
+relative to one library, so a laptop must not resume into one that exists on the
+host and nowhere else. Window bounds are checked against currently connected
+monitors before they are restored.
+
+These settings are always read from the sidecar this device spawned, even while
+browsing a library on another machine: the window has to draw whether or not the
+other machine is awake. A document written by an older build is migrated on read
+rather than rejected.
 
 ## Library, capture, and AI storage
 
@@ -205,6 +227,32 @@ with a base URL, model, optional API key, and enabled flag. The key is stored on
 in the local SQLite database and is represented by `hasApiKey`—never the secret
 itself—in API responses. Metadata enrichment can update a reference's title,
 description, tags, palette, and suggested real folder.
+
+## Reaching this library from another device
+
+RefNest can serve its library to another device on the same local network, so a
+laptop can browse and edit what a desktop stores. This is remote access, not
+sync: one machine owns the database and the files, so there is no merge and no
+offline mode.
+
+Sharing is off until you turn it on in Settings. Enabling it starts a second
+listener (`0.0.0.0:4317` by default) that serves a deliberately smaller
+contract — no workspace administration, no local file import, no AI provider
+settings, no desktop settings, no MCP. Those groups are absent from the shared
+contract rather than blocked by a check.
+
+A second device is added with a code: the host shows an eight-character pairing
+code that expires in five minutes and can be redeemed once, and the device that
+redeems it receives its own token, listed and revocable under Paired devices.
+The pairing endpoint exists only while a code is outstanding.
+
+Traffic on the shared listener is plain HTTP. Anyone who can observe the network
+can read a device token and the reference bytes, so this is meant for a home or
+studio network and not for guest or public wireless. The listener refuses any
+peer outside the private ranges, and nothing binds until sharing is enabled.
+
+`ENVIRONMENTS.md` records the architecture, the decisions, and what remains
+unproven.
 
 ## Design
 

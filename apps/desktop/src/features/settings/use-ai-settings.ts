@@ -16,13 +16,13 @@ export type AiSettingsState =
 
 const loadAiSettings = Effect.gen(function* () {
   const api = yield* ApiClient
-  return yield* api.ai.getSettings()
+  return yield* api.aiSettings.getSettings()
 }).pipe(Effect.mapError(toApiFailure))
 
 const saveAiSettings = (payload: UpdateAiSettings) =>
   Effect.gen(function* () {
     const api = yield* ApiClient
-    return yield* api.ai.updateSettings({ payload })
+    return yield* api.aiSettings.updateSettings({ payload })
   }).pipe(Effect.mapError(toApiFailure))
 
 /** Owns the sidecar's AI provider document for the whole app. */

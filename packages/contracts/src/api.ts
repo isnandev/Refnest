@@ -20,6 +20,17 @@ import {
   ListCaptureJobs,
   QuickSaveRejected
 } from "./capture"
+import {
+  ConnectEnvironment,
+  Environment,
+  EnvironmentConnection,
+  EnvironmentId,
+  EnvironmentNotFound,
+  EnvironmentProbe,
+  EnvironmentRejected,
+  PairingFailed,
+  UpdateEnvironment
+} from "./environment"
 import { HealthReport } from "./health"
 import {
   CreateLibraryFolder,
@@ -47,6 +58,19 @@ import {
   UpdateDesktopSettings
 } from "./settings"
 import {
+  DeviceNotFound,
+  PairedDevice,
+  PairedDeviceId,
+  PairingGrant,
+  PairingInvite,
+  PairingRejected,
+  RedeemPairing,
+  SharingFailed,
+  SharingRejected,
+  SharingStatus,
+  UpdateSharing
+} from "./sharing"
+import {
   BrowseWorkspaceDirectory,
   CreateWorkspace,
   Workspace,
@@ -62,6 +86,8 @@ const smartFolderIdParam = HttpApiSchema.param("id", SmartFolderId)
 const captureJobIdParam = HttpApiSchema.param("id", CaptureJobId)
 const workspaceIdParam = HttpApiSchema.param("workspaceId", WorkspaceId)
 const assetVariantParam = HttpApiSchema.param("variant", ReferenceAssetVariant)
+const environmentIdParam = HttpApiSchema.param("id", EnvironmentId)
+const pairedDeviceIdParam = HttpApiSchema.param("id", PairedDeviceId)
 
 export const healthGroup = HttpApiGroup.make("health").add(
   HttpApiEndpoint.get("check")`/health`.addSuccess(HealthReport)
@@ -77,12 +103,17 @@ export const notesGroup = HttpApiGroup.make("notes")
       .addError(NoteNotFound)
   )
 
-export const workspacesGroup = HttpApiGroup.make("workspaces")
-  .add(
-    HttpApiEndpoint.get("list")`/workspaces`
-      .addSuccess(Schema.Array(Workspace))
-      .addError(WorkspaceOperationFailed)
-  )
+export const workspacesGroup = HttpApiGroup.make("workspaces").add(
+  HttpApiEndpoint.get("list")`/workspaces`
+    .addSuccess(Schema.Array(Workspace))
+    .addError(WorkspaceOperationFailed)
+)
+
+/**
+ * Host-only: both endpoints reach into the host filesystem — one enumerates it,
+ * the other creates a real directory. Never part of `RefNestSharedApi`.
+ */
+export const workspaceAdminGroup = HttpApiGroup.make("workspaceAdmin")
   .add(
     HttpApiEndpoint.get("browse")`/workspaces/directories`
       .setUrlParams(BrowseWorkspaceDirectory)
@@ -96,6 +127,7 @@ export const workspacesGroup = HttpApiGroup.make("workspaces")
       .addError(WorkspaceOperationFailed)
   )
 
+/** Device-local: window bounds and appearance belong to the machine in front of you. */
 export const settingsGroup = HttpApiGroup.make("settings")
   .add(
     HttpApiEndpoint.get("get")`/settings`
@@ -108,6 +140,94 @@ export const settingsGroup = HttpApiGroup.make("settings")
       .addSuccess(DesktopSettings)
       .addError(SettingsPersistenceFailed)
   )
+
+/** Device-local: the registry of libraries this device can reach. */
+export const environmentsGroup = HttpApiGroup.make("environments")
+  .add(
+    HttpApiEndpoint.get("list")`/environments`
+      .addSuccess(Schema.Array(Environment))
+      .addError(EnvironmentRejected)
+  )
+  .add(
+    HttpApiEndpoint.post("connect")`/environments`
+      .setPayload(ConnectEnvironment)
+      .addSuccess(Environment, { status: 201 })
+      .addError(EnvironmentRejected)
+      .addError(PairingFailed)
+  )
+  .add(
+    HttpApiEndpoint.patch("update")`/environments/${environmentIdParam}`
+      .setPayload(UpdateEnvironment)
+      .addSuccess(Environment)
+      .addError(EnvironmentNotFound)
+      .addError(EnvironmentRejected)
+  )
+  .add(
+    HttpApiEndpoint.del("forget")`/environments/${environmentIdParam}`
+      .addSuccess(Schema.Void, { status: 204 })
+      .addError(EnvironmentNotFound)
+      .addError(EnvironmentRejected)
+  )
+  .add(
+    HttpApiEndpoint.get("probe")`/environments/${environmentIdParam}/probe`
+      .addSuccess(EnvironmentProbe)
+      .addError(EnvironmentNotFound)
+  )
+  /** Answers a usable credential. Loopback only, by never being on the shared API. */
+  .add(
+    HttpApiEndpoint.get("connection")`/environments/${environmentIdParam}/connection`
+      .addSuccess(EnvironmentConnection)
+      .addError(EnvironmentNotFound)
+      .addError(EnvironmentRejected)
+  )
+
+/** Device-local: who may reach this library, and on which port. */
+export const sharingGroup = HttpApiGroup.make("sharing")
+  .add(
+    HttpApiEndpoint.get("status")`/sharing`
+      .addSuccess(SharingStatus)
+      .addError(SharingFailed)
+  )
+  .add(
+    HttpApiEndpoint.put("update")`/sharing`
+      .setPayload(UpdateSharing)
+      .addSuccess(SharingStatus)
+      .addError(SharingRejected)
+      .addError(SharingFailed)
+  )
+  .add(
+    HttpApiEndpoint.post("invite")`/sharing/invites`
+      .addSuccess(PairingInvite, { status: 201 })
+      .addError(SharingRejected)
+      .addError(SharingFailed)
+  )
+  .add(
+    HttpApiEndpoint.del("cancelInvite")`/sharing/invites`
+      .addSuccess(Schema.Void, { status: 204 })
+      .addError(SharingFailed)
+  )
+  .add(
+    HttpApiEndpoint.get("devices")`/sharing/devices`
+      .addSuccess(Schema.Array(PairedDevice))
+      .addError(SharingFailed)
+  )
+  .add(
+    HttpApiEndpoint.del("revokeDevice")`/sharing/devices/${pairedDeviceIdParam}`
+      .addSuccess(Schema.Void, { status: 204 })
+      .addError(DeviceNotFound)
+      .addError(SharingFailed)
+  )
+
+/**
+ * Shared-listener only, and the one unauthenticated endpoint in the system. It
+ * is registered only while an invite is outstanding.
+ */
+export const pairingGroup = HttpApiGroup.make("pairing").add(
+  HttpApiEndpoint.post("redeem")`/pair`
+    .setPayload(RedeemPairing)
+    .addSuccess(PairingGrant, { status: 201 })
+    .addError(PairingRejected)
+)
 
 export const foldersGroup = HttpApiGroup.make("folders")
   .add(
@@ -146,14 +266,6 @@ export const referencesGroup = HttpApiGroup.make("references")
       .addError(LibraryNotFound)
       .addError(LibraryOperationFailed)
   )
-
-  .add(
-    HttpApiEndpoint.post("importLocal")`/references/import`
-      .setPayload(ImportLocalReference)
-      .addSuccess(InspirationReference, { status: 201 })
-      .addError(LibraryNotFound)
-      .addError(LibraryOperationFailed)
-  )
   .add(
     HttpApiEndpoint.get("byId")`/references/${referenceIdParam}`
       .addSuccess(InspirationReference)
@@ -173,6 +285,18 @@ export const referencesGroup = HttpApiGroup.make("references")
       .addError(LibraryNotFound)
       .addError(LibraryOperationFailed)
   )
+
+/**
+ * Host-only: the payload is an absolute path on the machine running the
+ * sidecar, which means nothing to a remote device.
+ */
+export const referenceImportGroup = HttpApiGroup.make("referenceImport").add(
+  HttpApiEndpoint.post("importLocal")`/references/import`
+    .setPayload(ImportLocalReference)
+    .addSuccess(InspirationReference, { status: 201 })
+    .addError(LibraryNotFound)
+    .addError(LibraryOperationFailed)
+)
 
 export const assetsGroup = HttpApiGroup.make("assets").add(
   HttpApiEndpoint.get(
@@ -234,7 +358,8 @@ export const quickSaveGroup = HttpApiGroup.make("quickSave")
       .addError(QuickSaveRejected)
   )
 
-export const aiGroup = HttpApiGroup.make("ai")
+/** Host-only: reads and writes the provider credential. */
+export const aiSettingsGroup = HttpApiGroup.make("aiSettings")
   .add(
     HttpApiEndpoint.get("getSettings")`/ai/settings`
       .addSuccess(AiSettings)
@@ -247,26 +372,51 @@ export const aiGroup = HttpApiGroup.make("ai")
       .addError(AiSettingsRejected)
       .addError(AiRequestFailed)
   )
-  .add(
-    HttpApiEndpoint.post("enrichReference")`/ai/references/${referenceIdParam}`
-      .addSuccess(InspirationReference)
-      .addError(LibraryNotFound)
-      .addError(LibraryOperationFailed)
-      .addError(AiNotConfigured)
-      .addError(AiRequestFailed)
-  )
 
-/** The single source of truth for the wire contract: server handlers and the desktop client both derive from it. */
+/** Shared: runs against the host's key, which the caller never sees. */
+export const aiEnrichGroup = HttpApiGroup.make("aiEnrich").add(
+  HttpApiEndpoint.post("enrichReference")`/ai/references/${referenceIdParam}`
+    .addSuccess(InspirationReference)
+    .addError(LibraryNotFound)
+    .addError(LibraryOperationFailed)
+    .addError(AiNotConfigured)
+    .addError(AiRequestFailed)
+)
+
+/** The loopback contract: the device listener implements all of it. */
 export const RefNestApi = HttpApi.make("refnest")
   .add(healthGroup)
   .add(notesGroup)
   .add(workspacesGroup)
+  .add(workspaceAdminGroup)
   .add(settingsGroup)
+  .add(environmentsGroup)
+  .add(sharingGroup)
+  .add(foldersGroup)
+  .add(referencesGroup)
+  .add(referenceImportGroup)
+  .add(assetsGroup)
+  .add(smartFoldersGroup)
+  .add(quickSaveGroup)
+  .add(aiSettingsGroup)
+  .add(aiEnrichGroup)
+
+export type RefNestApi = typeof RefNestApi
+
+/**
+ * The LAN contract. Host-only groups are absent rather than denied, so a
+ * remote device cannot reach them even if the middleware is wrong.
+ */
+export const RefNestSharedApi = HttpApi.make("refnest-shared")
+  .add(healthGroup)
+  .add(notesGroup)
+  .add(workspacesGroup)
   .add(foldersGroup)
   .add(referencesGroup)
   .add(assetsGroup)
   .add(smartFoldersGroup)
   .add(quickSaveGroup)
-  .add(aiGroup)
+  .add(aiEnrichGroup)
+  .add(pairingGroup)
 
-export type RefNestApi = typeof RefNestApi
+export type RefNestSharedApi = typeof RefNestSharedApi

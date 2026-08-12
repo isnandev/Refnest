@@ -39,6 +39,7 @@ export function LibrarySidebar({
   activeSelection,
   onSelectWorkspace,
   onCreateWorkspace,
+  onLocalLibrary,
   onSelectFolder,
   onOpenQuickSave,
   onImportFiles,
@@ -59,6 +60,8 @@ export function LibrarySidebar({
   readonly activeSelection: LibrarySelection
   readonly onSelectWorkspace: (workspace: Workspace) => void
   readonly onCreateWorkspace: () => void
+  /** Host-only affordances are hidden on a remote library, not left to 404. */
+  readonly onLocalLibrary: boolean
   readonly onSelectFolder: (selection: LibrarySelection) => void
   readonly onOpenQuickSave: () => void
   readonly onImportFiles: () => void
@@ -192,6 +195,7 @@ export function LibrarySidebar({
               aria-label="Add to library"
               className="library-popover absolute left-0 top-10 z-50 w-56 rounded-md border bg-popover p-1.5 text-popover-foreground"
             >
+              {onLocalLibrary ? (
               <button
                 type="button"
                 role="menuitem"
@@ -212,6 +216,7 @@ export function LibrarySidebar({
                 )}
                 {importPending ? "Importing…" : "Import files…"}
               </button>
+              ) : null}
               <button
                 type="button"
                 role="menuitem"
@@ -247,6 +252,7 @@ export function LibrarySidebar({
           selectedWorkspace={selectedWorkspace}
           onSelect={onSelectWorkspace}
           onCreate={onCreateWorkspace}
+          canCreate={onLocalLibrary}
         />
       </div>
 

@@ -1,11 +1,12 @@
 import { HttpApiBuilder } from "@effect/platform"
-import { RefNestApi } from "@refnest/contracts"
+import { RefNestApi, RefNestSharedApi } from "@refnest/contracts"
 import { Effect } from "effect"
 import { AiService } from "./ai-service"
 
-export const AiHttpLive = HttpApiBuilder.group(
+/** Host-only: this is the surface that reads and writes the provider credential. */
+export const AiSettingsHttpLive = HttpApiBuilder.group(
   RefNestApi,
-  "ai",
+  "aiSettings",
   (handlers) =>
     Effect.gen(function* () {
       const ai = yield* AiService
@@ -13,8 +14,32 @@ export const AiHttpLive = HttpApiBuilder.group(
       return handlers
         .handle("getSettings", () => ai.getSettings())
         .handle("updateSettings", ({ payload }) => ai.updateSettings(payload))
-        .handle("enrichReference", ({ path }) =>
-          ai.enrichReference(path.id)
-        )
+    })
+)
+
+export const AiEnrichHttpLive = HttpApiBuilder.group(
+  RefNestApi,
+  "aiEnrich",
+  (handlers) =>
+    Effect.gen(function* () {
+      const ai = yield* AiService
+
+      return handlers.handle("enrichReference", ({ path }) =>
+        ai.enrichReference(path.id)
+      )
+    })
+)
+
+/** Shared: enrichment runs against the host's key, which the caller never sees. */
+export const SharedAiEnrichHttpLive = HttpApiBuilder.group(
+  RefNestSharedApi,
+  "aiEnrich",
+  (handlers) =>
+    Effect.gen(function* () {
+      const ai = yield* AiService
+
+      return handlers.handle("enrichReference", ({ path }) =>
+        ai.enrichReference(path.id)
+      )
     })
 )

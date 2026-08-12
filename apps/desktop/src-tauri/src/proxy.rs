@@ -5,11 +5,17 @@
 //! unchanged. Status codes and error bodies are the sidecar's to decide.
 
 use std::collections::HashMap;
+use std::time::Duration;
 
 use reqwest::{Client, Method};
 use serde::{Deserialize, Serialize};
 
 use crate::sidecar::Endpoint;
+
+/// Generous enough for a Quick Save job to be accepted and for a large asset to
+/// stream off another machine, short enough that a sleeping host surfaces as an
+/// error instead of a spinner that never resolves. Loopback never needed one.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Deserialize)]
 pub struct ApiRequest {
@@ -28,9 +34,19 @@ pub struct ApiResponse {
     pub body: Vec<u8>,
 }
 
-#[derive(Default)]
 pub struct ApiProxy {
     http: Client,
+}
+
+impl Default for ApiProxy {
+    fn default() -> Self {
+        Self {
+            http: Client::builder()
+                .timeout(REQUEST_TIMEOUT)
+                .build()
+                .unwrap_or_default(),
+        }
+    }
 }
 
 impl ApiProxy {

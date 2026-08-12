@@ -6,6 +6,7 @@ import { PanelRightClose, PanelRightOpen } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { AppCommandMenu } from "@/features/commands/app-command-menu"
+import { RemoteLibraryBadge } from "@/features/environments/remote-library-badge"
 import { SidebarResizeHandle } from "@/features/shell/sidebar-resize-handle"
 import {
   useSidebar,
@@ -33,6 +34,8 @@ export function ReferenceLibrary({
   settingsReady,
   theme,
   aiEnabled,
+  libraryName,
+  onLocalLibrary,
   onSelectWorkspace,
   onCreateWorkspace,
   onSidebarPreferencesChange,
@@ -45,6 +48,13 @@ export function ReferenceLibrary({
   readonly settingsReady: boolean
   readonly theme: Theme
   readonly aiEnabled: boolean
+  readonly libraryName: string | null
+  /**
+   * Host-only affordances are hidden rather than left to fail: on a remote
+   * library, workspace creation and local file import are absent from that
+   * machine's shared contract.
+   */
+  readonly onLocalLibrary: boolean
   readonly onSelectWorkspace: (workspace: Workspace) => void
   readonly onCreateWorkspace: () => void
   readonly onSidebarPreferencesChange: (
@@ -157,6 +167,7 @@ export function ReferenceLibrary({
             activeSelection={activeSelection}
             onSelectWorkspace={onSelectWorkspace}
             onCreateWorkspace={onCreateWorkspace}
+            onLocalLibrary={onLocalLibrary}
             onSelectFolder={selectFolder}
             onOpenQuickSave={openQuickSave}
             onImportFiles={importFiles}
@@ -190,6 +201,10 @@ export function ReferenceLibrary({
         <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-stage">
           <TitleBar
             leading={
+              <>
+              {!onLocalLibrary && libraryName !== null ? (
+                <RemoteLibraryBadge name={libraryName} />
+              ) : null}
               <LibraryToolbar
                 workspaceLabel={selectedWorkspace?.name ?? "Workspace"}
                 folderLabel={currentFolderLabel}
@@ -210,6 +225,7 @@ export function ReferenceLibrary({
                 onIncludeSubfoldersChange={setIncludeSubfolders}
                 onEnrich={() => void enrichSelected()}
               />
+              </>
             }
           >
             <Button

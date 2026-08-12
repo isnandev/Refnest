@@ -1,10 +1,15 @@
 import {
+  LOCAL_ENVIRONMENT_ID,
+  selectedWorkspaceId,
   UpdateDesktopSettings,
+  type EnvironmentId,
   type ThemePreference,
   type WorkspaceId
 } from "@refnest/contracts"
 import { useCallback, useState } from "react"
 
+import { useEnvironments } from "@/features/environments/use-environments"
+import { useSharing } from "@/features/environments/use-sharing"
 import { ReferenceLibrary } from "@/features/library/reference-library"
 import { SettingsPage } from "@/features/settings/settings-page"
 import { useAiSettings } from "@/features/settings/use-ai-settings"
@@ -36,8 +41,16 @@ export default function App() {
     [appSettings.update]
   )
   const persistWorkspace = useCallback(
-    (selectedWorkspaceId: WorkspaceId) => {
-      appSettings.update(new UpdateDesktopSettings({ selectedWorkspaceId }))
+    (workspaceId: WorkspaceId) => {
+      appSettings.update(
+        new UpdateDesktopSettings({ selectedWorkspaceId: workspaceId })
+      )
+    },
+    [appSettings.update]
+  )
+  const persistActiveEnvironment = useCallback(
+    (activeEnvironmentId: EnvironmentId) => {
+      appSettings.update(new UpdateDesktopSettings({ activeEnvironmentId }))
     },
     [appSettings.update]
   )
@@ -54,8 +67,15 @@ export default function App() {
   )
 
   const theme = useTheme(settings.themePreference, persistTheme)
+  const environments = useEnvironments(
+    settings.activeEnvironmentId,
+    settingsReady,
+    persistActiveEnvironment
+  )
+  const sharing = useSharing()
+  const onLocalLibrary = settings.activeEnvironmentId === LOCAL_ENVIRONMENT_ID
   const workspaces = useWorkspaces(
-    settings.selectedWorkspaceId,
+    selectedWorkspaceId(settings),
     settingsReady,
     persistWorkspace
   )
@@ -70,6 +90,8 @@ export default function App() {
           themePreference={theme.preference}
           settings={settings}
           saveError={appSettings.saveError}
+          environments={environments}
+          sharing={sharing}
           aiState={aiSettings.state}
           aiPending={aiSettings.pending}
           aiActionError={aiSettings.actionError}
@@ -93,6 +115,8 @@ export default function App() {
           settingsReady={settingsReady}
           theme={theme.theme}
           aiEnabled={aiEnabled}
+          libraryName={environments.active?.name ?? null}
+          onLocalLibrary={onLocalLibrary}
           onSelectWorkspace={workspaces.select}
           onCreateWorkspace={() => {
             workspaces.clearActionError()

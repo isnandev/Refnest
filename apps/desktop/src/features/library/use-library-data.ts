@@ -105,7 +105,7 @@ const removeReference = (id: ReferenceId) =>
 const enrichReference = (id: ReferenceId) =>
   Effect.gen(function* () {
     const api = yield* ApiClient
-    return yield* api.ai.enrichReference({ path: { id } })
+    return yield* api.aiEnrich.enrichReference({ path: { id } })
   }).pipe(Effect.mapError(toApiFailure))
 
 /** Owns typed library reads and mutations; library components stay render-only. */

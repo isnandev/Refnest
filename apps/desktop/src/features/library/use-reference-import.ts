@@ -66,7 +66,7 @@ const importSelectedFiles = (
     const outcomes = yield* Effect.forEach(
       paths,
       (path) =>
-        api.references
+        api.referenceImport
           .importLocal({
             payload: new ImportLocalReference({ workspaceId, folderId, path })
           })

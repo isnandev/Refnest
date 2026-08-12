@@ -1,8 +1,14 @@
 import { describe, expect, it } from "@effect/vitest"
 import {
   DEFAULT_DESKTOP_SETTINGS,
+  decodeStoredDesktopSettings,
   DesktopSettings,
-  UpdateDesktopSettings
+  EnvironmentId,
+  LOCAL_ENVIRONMENT_ID,
+  mergeDesktopSettings,
+  selectedWorkspaceId,
+  UpdateDesktopSettings,
+  WorkspaceId
 } from "@refnest/contracts"
 import { Effect, Schema } from "effect"
 
@@ -53,4 +59,78 @@ describe("desktop settings contracts", () => {
       expect(opacity._tag).toBe("Left")
       expect(window._tag).toBe("Left")
     }))
+})
+
+describe("workspace selection is per environment", () => {
+  const studio = EnvironmentId.make("env-studio")
+  const laptopWorkspace = WorkspaceId.make("ws-laptop")
+  const studioWorkspace = WorkspaceId.make("ws-studio")
+
+  it("keeps one selection per library", () => {
+    const withLocal = mergeDesktopSettings(
+      DEFAULT_DESKTOP_SETTINGS,
+      new UpdateDesktopSettings({ selectedWorkspaceId: laptopWorkspace })
+    )
+    const onStudio = mergeDesktopSettings(
+      withLocal,
+      new UpdateDesktopSettings({
+        activeEnvironmentId: studio,
+        selectedWorkspaceId: studioWorkspace
+      })
+    )
+
+    expect(selectedWorkspaceId(onStudio)).toBe(studioWorkspace)
+    expect(selectedWorkspaceId(mergeDesktopSettings(
+      onStudio,
+      new UpdateDesktopSettings({ activeEnvironmentId: LOCAL_ENVIRONMENT_ID })
+    ))).toBe(laptopWorkspace)
+  })
+
+  it("clears only the active library's selection", () => {
+    const seeded = mergeDesktopSettings(
+      DEFAULT_DESKTOP_SETTINGS,
+      new UpdateDesktopSettings({ selectedWorkspaceId: laptopWorkspace })
+    )
+    const cleared = mergeDesktopSettings(
+      seeded,
+      new UpdateDesktopSettings({ selectedWorkspaceId: null })
+    )
+
+    expect(selectedWorkspaceId(cleared)).toBeNull()
+  })
+})
+
+describe("stored settings migration", () => {
+  it("moves a pre-environments selection onto the local library", () => {
+    const migrated = decodeStoredDesktopSettings({
+      themePreference: "dark",
+      autoCollapseSidebar: true,
+      reduceMotion: false,
+      sidebarBackgroundOpacity: 60,
+      sidebarWidth: 272,
+      sidebarCollapsed: false,
+      selectedWorkspaceId: "ws-legacy",
+      activeSection: "overview",
+      windowPlacement: null
+    })
+
+    expect(migrated.activeEnvironmentId).toBe(LOCAL_ENVIRONMENT_ID)
+    expect(selectedWorkspaceId(migrated)).toBe("ws-legacy")
+    expect(migrated.themePreference).toBe("dark")
+  })
+
+  it("fills absent fields from the documented defaults", () => {
+    const migrated = decodeStoredDesktopSettings({ themePreference: "light" })
+
+    expect(migrated.themePreference).toBe("light")
+    expect(migrated.sidebarWidth).toBe(DEFAULT_DESKTOP_SETTINGS.sidebarWidth)
+    expect(selectedWorkspaceId(migrated)).toBeNull()
+  })
+
+  it("falls back to defaults rather than failing on an unreadable document", () => {
+    expect(decodeStoredDesktopSettings("not an object")).toEqual(
+      DEFAULT_DESKTOP_SETTINGS
+    )
+    expect(decodeStoredDesktopSettings(null)).toEqual(DEFAULT_DESKTOP_SETTINGS)
+  })
 })
