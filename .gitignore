@@ -11,3 +11,6 @@ apps/desktop/src-tauri/binaries/
 .env.local
 
 .qa/
+
+# Agent session state, including throwaway git worktrees
+.claude/

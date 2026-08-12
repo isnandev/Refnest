@@ -16,7 +16,7 @@ const browseWorkspaceDirectory = (path?: string) =>
   Effect.gen(function* () {
     const api = yield* ApiClient
 
-    return yield* api.workspaces.browse({
+    return yield* api.workspaceAdmin.browse({
       urlParams: path === undefined ? {} : { path }
     })
   }).pipe(Effect.mapError(toApiFailure))

@@ -18,12 +18,15 @@ export function WorkspaceSelector({
   state,
   selectedWorkspace,
   onSelect,
-  onCreate
+  onCreate,
+  canCreate = true
 }: {
   readonly state: WorkspacesState
   readonly selectedWorkspace: Workspace | null
   readonly onSelect: (workspace: Workspace) => void
   readonly onCreate: () => void
+  /** False on a remote library: creating one writes a directory on the host. */
+  readonly canCreate?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const label =
@@ -99,19 +102,23 @@ export function WorkspaceSelector({
                   ))}
               </CommandGroup>
 
-              <CommandSeparator />
-              <CommandGroup>
-                <CommandItem
-                  value="create new workspace"
-                  onSelect={() => {
-                    setOpen(false)
-                    onCreate()
-                  }}
-                >
-                  <FolderPlus aria-hidden="true" />
-                  Create workspace…
-                </CommandItem>
-              </CommandGroup>
+              {canCreate ? (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup>
+                    <CommandItem
+                      value="create new workspace"
+                      onSelect={() => {
+                        setOpen(false)
+                        onCreate()
+                      }}
+                    >
+                      <FolderPlus aria-hidden="true" />
+                      Create workspace…
+                    </CommandItem>
+                  </CommandGroup>
+                </>
+              ) : null}
             </CommandList>
           </Command>
         </Popover.Content>

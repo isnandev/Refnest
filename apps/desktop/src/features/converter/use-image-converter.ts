@@ -14,7 +14,7 @@ import { Effect } from "effect"
 import { useCallback, useState } from "react"
 
 import { isTauriRuntime } from "@/features/window/tauri-runtime"
-import { ApiClient } from "@/lib/api/client"
+import { ApiClient, LocalApiClient } from "@/lib/api/client"
 import { ApiFailure, toApiFailure } from "@/lib/api/errors"
 import { appRuntime } from "@/lib/runtime"
 
@@ -49,7 +49,7 @@ const pickOutputDirectory = requireDesktop(() =>
 )
 
 const runAction = async <A>(
-  effect: Effect.Effect<A, ApiFailure, ApiClient>,
+  effect: Effect.Effect<A, ApiFailure, ApiClient | LocalApiClient>,
   onError: (message: string) => void
 ): Promise<A | null> => {
   try {
@@ -100,7 +100,9 @@ export const useImageConverter = () => {
       try {
         return await runAction(
           Effect.gen(function* () {
-            const api = yield* ApiClient
+            // Always this machine: the paths and the output folder are on the
+            // local disk, not in whichever library is being browsed.
+            const api = yield* LocalApiClient
             return yield* api.converter.convertLocal({
               payload: new ConvertLocalImages({
                 paths,
@@ -132,6 +134,8 @@ export const useImageConverter = () => {
       try {
         return await runAction(
           Effect.gen(function* () {
+            // The reference lives in the active library. The converter group is
+            // host-only, so callers gate this on that library being local.
             const api = yield* ApiClient
             return yield* api.converter.convertReference({
               path: { id: referenceId },

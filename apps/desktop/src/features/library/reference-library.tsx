@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { AppCommandMenu } from "@/features/commands/app-command-menu"
 import { ConvertReferenceDialog } from "@/features/converter/convert-reference-dialog"
 import { useImageConverter } from "@/features/converter/use-image-converter"
+import { RemoteLibraryBadge } from "@/features/environments/remote-library-badge"
 import { SidebarResizeHandle } from "@/features/shell/sidebar-resize-handle"
 import {
   useSidebar,
@@ -18,6 +19,7 @@ import type { Theme } from "@/features/theme/use-theme"
 import { TitleBar } from "@/features/window/title-bar"
 import type { WorkspacesState } from "@/features/workspaces/use-workspaces"
 import { cn } from "@/lib/utils"
+import { CaptureToaster } from "./capture-toaster"
 import { FolderCreateDialog } from "./folder-create-dialog"
 import { InspectorPanel } from "./inspector-panel"
 import { PRIMARY_FOLDERS } from "./library-data"
@@ -35,6 +37,8 @@ export function ReferenceLibrary({
   settingsReady,
   theme,
   aiEnabled,
+  libraryName,
+  onLocalLibrary,
   onSelectWorkspace,
   onCreateWorkspace,
   onSidebarPreferencesChange,
@@ -48,6 +52,13 @@ export function ReferenceLibrary({
   readonly settingsReady: boolean
   readonly theme: Theme
   readonly aiEnabled: boolean
+  readonly libraryName: string | null
+  /**
+   * Host-only affordances are hidden rather than left to fail: on a remote
+   * library, workspace creation and local file import are absent from that
+   * machine's shared contract.
+   */
+  readonly onLocalLibrary: boolean
   readonly onSelectWorkspace: (workspace: Workspace) => void
   readonly onCreateWorkspace: () => void
   readonly onSidebarPreferencesChange: (
@@ -101,6 +112,7 @@ export function ReferenceLibrary({
     setCommandMenuOpen,
     selectFolder,
     selectItem,
+    selectReferenceById,
     updateSelected,
     enrichSelected,
     moveSelectedToTrash,
@@ -166,6 +178,7 @@ export function ReferenceLibrary({
             activeSelection={activeSelection}
             onSelectWorkspace={onSelectWorkspace}
             onCreateWorkspace={onCreateWorkspace}
+            onLocalLibrary={onLocalLibrary}
             onSelectFolder={selectFolder}
             onOpenQuickSave={openQuickSave}
             onImportFiles={importFiles}
@@ -200,6 +213,10 @@ export function ReferenceLibrary({
         <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-stage">
           <TitleBar
             leading={
+              <>
+              {!onLocalLibrary && libraryName !== null ? (
+                <RemoteLibraryBadge name={libraryName} />
+              ) : null}
               <LibraryToolbar
                 workspaceLabel={selectedWorkspace?.name ?? "Workspace"}
                 folderLabel={currentFolderLabel}
@@ -220,6 +237,7 @@ export function ReferenceLibrary({
                 onIncludeSubfoldersChange={setIncludeSubfolders}
                 onEnrich={() => void enrichSelected()}
               />
+              </>
             }
           >
             <Button
@@ -301,6 +319,7 @@ export function ReferenceLibrary({
                 onTrash={() => void moveSelectedToTrash()}
                 onRestore={() => void restoreSelected()}
                 onEnrich={() => void enrichSelected()}
+                canConvert={onLocalLibrary}
                 onConvert={openConvert}
                 onOpenSource={() => {
                   if (
@@ -315,6 +334,11 @@ export function ReferenceLibrary({
           </div>
         </section>
       </div>
+
+      <CaptureToaster
+        jobs={quickSave.state.jobs}
+        onShowReference={(id) => void selectReferenceById(id)}
+      />
 
       <AppCommandMenu
         open={commandMenuOpen}

@@ -10,6 +10,11 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { ApiClient } from "@/lib/api/client"
 import { toApiFailure } from "@/lib/api/errors"
 import { appRuntime } from "@/lib/runtime"
+import {
+  captureStatuses,
+  isActiveCapture,
+  settledCaptureJobs
+} from "./capture-job"
 
 export type CaptureJobsState =
   | { readonly status: "loading"; readonly jobs: ReadonlyArray<CaptureJob> }
@@ -19,12 +24,6 @@ export type CaptureJobsState =
       readonly jobs: ReadonlyArray<CaptureJob>
       readonly message: string
     }
-
-const ACTIVE_CAPTURE_STATUSES = new Set<CaptureJob["status"]>([
-  "queued",
-  "capturing",
-  "enriching"
-])
 
 const listCaptureJobs = (workspaceId: WorkspaceId) =>
   Effect.gen(function* () {
@@ -37,22 +36,6 @@ const createQuickSave = (payload: CreateQuickSave) =>
     const api = yield* ApiClient
     return yield* api.quickSave.create({ payload })
   }).pipe(Effect.mapError(toApiFailure))
-
-const jobSettled = (
-  previous: ReadonlyArray<CaptureJob>,
-  next: ReadonlyArray<CaptureJob>
-) => {
-  const previousStatuses = new Map(previous.map((job) => [job.id, job.status]))
-
-  return next.some((job) => {
-    const previousStatus = previousStatuses.get(job.id)
-    return (
-      previousStatus !== undefined &&
-      ACTIVE_CAPTURE_STATUSES.has(previousStatus) &&
-      !ACTIVE_CAPTURE_STATUSES.has(job.status)
-    )
-  })
-}
 
 /** Queues captures and polls only while the selected workspace has active jobs. */
 export const useQuickSave = (
@@ -92,10 +75,13 @@ export const useQuickSave = (
       return
     }
 
-    const settled = jobSettled(jobs.current, result.right)
+    const settled = settledCaptureJobs(
+      captureStatuses(jobs.current),
+      result.right
+    )
     jobs.current = result.right
     setState({ status: "ready", jobs: result.right })
-    if (settled) onJobSettledRef.current()
+    if (settled.length > 0) onJobSettledRef.current()
   }, [workspaceId])
 
   useEffect(() => {
@@ -104,9 +90,7 @@ export const useQuickSave = (
     void refresh()
   }, [refresh])
 
-  const hasActiveJobs = state.jobs.some((job) =>
-    ACTIVE_CAPTURE_STATUSES.has(job.status)
-  )
+  const hasActiveJobs = state.jobs.some((job) => isActiveCapture(job.status))
 
   useEffect(() => {
     if (!hasActiveJobs) return

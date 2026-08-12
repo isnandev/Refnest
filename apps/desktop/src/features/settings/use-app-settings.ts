@@ -7,7 +7,7 @@ import {
 import { Effect } from "effect"
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import { ApiClient } from "@/lib/api/client"
+import { LocalApiClient } from "@/lib/api/client"
 import { toApiFailure } from "@/lib/api/errors"
 import { appRuntime } from "@/lib/runtime"
 
@@ -24,13 +24,13 @@ export type AppSettingsStatus = "loading" | "ready" | "failed"
 const SAVE_DELAY_MS = 180
 
 const loadDesktopSettings = Effect.gen(function* () {
-  const api = yield* ApiClient
+  const api = yield* LocalApiClient
   return yield* api.settings.get()
 }).pipe(Effect.mapError(toApiFailure))
 
 const saveDesktopSettings = (patch: UpdateDesktopSettings) =>
   Effect.gen(function* () {
-    const api = yield* ApiClient
+    const api = yield* LocalApiClient
     return yield* api.settings.update({ payload: patch })
   }).pipe(Effect.mapError(toApiFailure))
 
@@ -39,7 +39,13 @@ const mergePatches = (
   next: UpdateDesktopSettings
 ) => new UpdateDesktopSettings({ ...current, ...next })
 
-/** Owns the single Bun/SQLite-backed desktop settings document. */
+/**
+ * Owns the single Bun/SQLite-backed desktop settings document.
+ *
+ * Always the local sidecar: window bounds and appearance belong to the machine
+ * in front of the user, and have to resolve before the network is known — the
+ * window must draw whether or not a remote library is awake.
+ */
 export const useAppSettings = () => {
   const [settings, setSettings] = useState<DesktopSettings>(
     DEFAULT_DESKTOP_SETTINGS

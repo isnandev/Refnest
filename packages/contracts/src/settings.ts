@@ -1,5 +1,6 @@
 import { HttpApiSchema } from "@effect/platform"
 import { Schema } from "effect"
+import { EnvironmentId, LOCAL_ENVIRONMENT_ID } from "./environment"
 import { WorkspaceId } from "./workspace"
 
 export const SIDEBAR_BACKGROUND_OPACITY_MIN = 40
@@ -34,6 +35,16 @@ const SidebarBackgroundOpacity = Schema.Int.pipe(
   )
 )
 
+/**
+ * A workspace id only means something relative to one library, so the resume
+ * selection is keyed by environment. Without this, a laptop would resume into a
+ * workspace that exists on the host and nowhere else.
+ */
+const WorkspaceSelections = Schema.Record({
+  key: EnvironmentId,
+  value: WorkspaceId
+})
+
 export class WindowPlacement extends Schema.Class<WindowPlacement>(
   "WindowPlacement"
 )({
@@ -54,7 +65,8 @@ export class DesktopSettings extends Schema.Class<DesktopSettings>(
   sidebarBackgroundOpacity: SidebarBackgroundOpacity,
   sidebarWidth: SidebarWidth,
   sidebarCollapsed: Schema.Boolean,
-  selectedWorkspaceId: Schema.NullOr(WorkspaceId),
+  activeEnvironmentId: EnvironmentId,
+  workspaceSelections: WorkspaceSelections,
   activeSection: AppSection,
   windowPlacement: Schema.NullOr(WindowPlacement)
 }) {}
@@ -69,6 +81,8 @@ export class UpdateDesktopSettings extends Schema.Class<UpdateDesktopSettings>(
   sidebarBackgroundOpacity: Schema.optional(SidebarBackgroundOpacity),
   sidebarWidth: Schema.optional(SidebarWidth),
   sidebarCollapsed: Schema.optional(Schema.Boolean),
+  activeEnvironmentId: Schema.optional(EnvironmentId),
+  /** Applies to the environment the same patch selects, or the active one. */
   selectedWorkspaceId: Schema.optional(Schema.NullOr(WorkspaceId)),
   activeSection: Schema.optional(AppSection),
   windowPlacement: Schema.optional(Schema.NullOr(WindowPlacement))
@@ -97,16 +111,31 @@ export const DEFAULT_DESKTOP_SETTINGS = new DesktopSettings({
   sidebarBackgroundOpacity: 60,
   sidebarWidth: 272,
   sidebarCollapsed: false,
-  selectedWorkspaceId: null,
+  activeEnvironmentId: LOCAL_ENVIRONMENT_ID,
+  workspaceSelections: {},
   activeSection: "overview",
   windowPlacement: null
 })
 
+/** The workspace this device last used in the library it is currently pointed at. */
+export const selectedWorkspaceId = (settings: DesktopSettings) =>
+  settings.workspaceSelections[settings.activeEnvironmentId] ?? null
+
 export const mergeDesktopSettings = (
   current: DesktopSettings,
   patch: UpdateDesktopSettings
-) =>
-  new DesktopSettings({
+) => {
+  const activeEnvironmentId =
+    patch.activeEnvironmentId ?? current.activeEnvironmentId
+  const workspaceSelections = { ...current.workspaceSelections }
+
+  if (patch.selectedWorkspaceId === null) {
+    delete workspaceSelections[activeEnvironmentId]
+  } else if (patch.selectedWorkspaceId !== undefined) {
+    workspaceSelections[activeEnvironmentId] = patch.selectedWorkspaceId
+  }
+
+  return new DesktopSettings({
     themePreference: patch.themePreference ?? current.themePreference,
     autoCollapseSidebar:
       patch.autoCollapseSidebar ?? current.autoCollapseSidebar,
@@ -116,13 +145,74 @@ export const mergeDesktopSettings = (
       patch.sidebarBackgroundOpacity ?? current.sidebarBackgroundOpacity,
     sidebarWidth: patch.sidebarWidth ?? current.sidebarWidth,
     sidebarCollapsed: patch.sidebarCollapsed ?? current.sidebarCollapsed,
-    selectedWorkspaceId:
-      patch.selectedWorkspaceId === undefined
-        ? current.selectedWorkspaceId
-        : patch.selectedWorkspaceId,
+    activeEnvironmentId,
+    workspaceSelections,
     activeSection: patch.activeSection ?? current.activeSection,
     windowPlacement:
       patch.windowPlacement === undefined
         ? current.windowPlacement
         : patch.windowPlacement
   })
+}
+
+/**
+ * Every field optional, plus the pre-environments `selectedWorkspaceId`, so a
+ * document written by an older build still loads. A settings row that cannot be
+ * read at all should cost the user their preferences, not the whole app.
+ */
+const StoredDesktopSettings = Schema.Struct({
+  themePreference: Schema.optional(ThemePreference),
+  autoCollapseSidebar: Schema.optional(Schema.Boolean),
+  autoConvertImports: Schema.optional(Schema.Boolean),
+  reduceMotion: Schema.optional(Schema.Boolean),
+  sidebarBackgroundOpacity: Schema.optional(SidebarBackgroundOpacity),
+  sidebarWidth: Schema.optional(SidebarWidth),
+  sidebarCollapsed: Schema.optional(Schema.Boolean),
+  activeEnvironmentId: Schema.optional(EnvironmentId),
+  workspaceSelections: Schema.optional(WorkspaceSelections),
+  activeSection: Schema.optional(AppSection),
+  windowPlacement: Schema.optional(Schema.NullOr(WindowPlacement)),
+  selectedWorkspaceId: Schema.optional(Schema.NullOr(WorkspaceId))
+})
+
+const decodeStored = Schema.decodeUnknownEither(StoredDesktopSettings)
+
+export const decodeStoredDesktopSettings = (
+  input: unknown
+): DesktopSettings => {
+  const stored = decodeStored(input)
+  if (stored._tag === "Left") return DEFAULT_DESKTOP_SETTINGS
+
+  const document = stored.right
+  const selections = { ...(document.workspaceSelections ?? {}) }
+  const legacyWorkspaceId = document.selectedWorkspaceId
+
+  // A pre-environments document only ever described the local library.
+  if (
+    legacyWorkspaceId !== undefined &&
+    legacyWorkspaceId !== null &&
+    selections[LOCAL_ENVIRONMENT_ID] === undefined
+  ) {
+    selections[LOCAL_ENVIRONMENT_ID] = legacyWorkspaceId
+  }
+
+  const fallback = DEFAULT_DESKTOP_SETTINGS
+
+  return new DesktopSettings({
+    themePreference: document.themePreference ?? fallback.themePreference,
+    autoCollapseSidebar:
+      document.autoCollapseSidebar ?? fallback.autoCollapseSidebar,
+    autoConvertImports:
+      document.autoConvertImports ?? fallback.autoConvertImports,
+    reduceMotion: document.reduceMotion ?? fallback.reduceMotion,
+    sidebarBackgroundOpacity:
+      document.sidebarBackgroundOpacity ?? fallback.sidebarBackgroundOpacity,
+    sidebarWidth: document.sidebarWidth ?? fallback.sidebarWidth,
+    sidebarCollapsed: document.sidebarCollapsed ?? fallback.sidebarCollapsed,
+    activeEnvironmentId:
+      document.activeEnvironmentId ?? fallback.activeEnvironmentId,
+    workspaceSelections: selections,
+    activeSection: document.activeSection ?? fallback.activeSection,
+    windowPlacement: document.windowPlacement ?? fallback.windowPlacement
+  })
+}

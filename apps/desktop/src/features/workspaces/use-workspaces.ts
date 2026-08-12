@@ -25,7 +25,7 @@ const createWorkspace = (payload: CreateWorkspace) =>
   Effect.gen(function* () {
     const api = yield* ApiClient
 
-    return yield* api.workspaces.create({ payload })
+    return yield* api.workspaceAdmin.create({ payload })
   }).pipe(Effect.mapError(toApiFailure))
 
 /** Owns workspace API orchestration; the shared settings owner persists selection. */

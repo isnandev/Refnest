@@ -45,6 +45,7 @@ export function InspectorPanel({
   onTrash,
   onRestore,
   onEnrich,
+  canConvert,
   onConvert,
   onOpenSource
 }: {
@@ -61,6 +62,7 @@ export function InspectorPanel({
   readonly onTrash: () => void
   readonly onRestore: () => void
   readonly onEnrich: () => void
+  readonly canConvert: boolean
   readonly onConvert: () => void
   readonly onOpenSource: () => void
 }) {
@@ -227,7 +229,7 @@ export function InspectorPanel({
 
       {item !== null && (
         <div className="grid shrink-0 gap-2 border-t p-3">
-          {item.kind === "image" && (
+          {item.kind === "image" && canConvert && (
             <Button
               type="button"
               variant="outline"

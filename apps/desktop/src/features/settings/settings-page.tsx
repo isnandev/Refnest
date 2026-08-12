@@ -1,6 +1,8 @@
 import {
+  LOCAL_ENVIRONMENT_ID,
   UpdateAiSettings,
   UpdateDesktopSettings,
+  type DesktopSettings,
   type ThemePreference
 } from "@refnest/contracts"
 import {
@@ -18,6 +20,10 @@ import type { LucideIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { LibrariesSection } from "@/features/environments/libraries-section"
+import { SharingSection } from "@/features/environments/sharing-section"
+import type { useEnvironments } from "@/features/environments/use-environments"
+import type { useSharing } from "@/features/environments/use-sharing"
 import type { Theme } from "@/features/theme/use-theme"
 import { TitleBar } from "@/features/window/title-bar"
 import { AiSettingsSection } from "./ai-settings-section"
@@ -41,6 +47,8 @@ export function SettingsPage({
   themePreference,
   settings,
   saveError,
+  environments,
+  sharing,
   aiState,
   aiPending,
   aiActionError,
@@ -53,8 +61,10 @@ export function SettingsPage({
 }: {
   readonly resolvedTheme: Theme
   readonly themePreference: ThemePreference
-  readonly settings: AppSettings
+  readonly settings: AppSettings & Pick<DesktopSettings, "activeEnvironmentId">
   readonly saveError: string | null
+  readonly environments: ReturnType<typeof useEnvironments>
+  readonly sharing: ReturnType<typeof useSharing>
   readonly aiState: AiSettingsState
   readonly aiPending: boolean
   readonly aiActionError: string | null
@@ -65,6 +75,8 @@ export function SettingsPage({
   readonly onReset: () => void
   readonly onClose: () => void
 }) {
+  const onLocalLibrary = settings.activeEnvironmentId === LOCAL_ENVIRONMENT_ID
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-stage text-foreground">
       <TitleBar
@@ -173,10 +185,37 @@ export function SettingsPage({
             </Card>
           </section>
 
-          <section className="pt-10" aria-labelledby="library-title">
-            <h2 id="library-title" className="text-h2">
-              Library
+          <section className="pt-10" aria-labelledby="libraries-title">
+            <h2 id="libraries-title" className="text-h2">
+              Libraries
             </h2>
+            <p className="mt-1 max-w-[620px] text-body-sm text-muted-foreground">
+              Which library this device is browsing. Appearance and window
+              settings always stay on this device.
+            </p>
+            <LibrariesSection
+              environments={environments}
+              activeEnvironmentId={settings.activeEnvironmentId}
+            />
+          </section>
+
+          <section className="pt-10" aria-labelledby="sharing-title">
+            <h2 id="sharing-title" className="text-h2">
+              Local network
+            </h2>
+            <p className="mt-1 max-w-[620px] text-body-sm text-muted-foreground">
+              Let another device on this network open the library stored here.
+            </p>
+            <SharingSection sharing={sharing} />
+          </section>
+
+          <section className="pt-10" aria-labelledby="imports-title">
+            <h2 id="imports-title" className="text-h2">
+              Imports
+            </h2>
+            <p className="mt-1 max-w-[620px] text-body-sm text-muted-foreground">
+              Applies to files imported into the library stored on this device.
+            </p>
             <Card className="mt-3 gap-0 overflow-hidden p-0">
               <SettingRow
                 icon={Replace}
@@ -201,16 +240,19 @@ export function SettingsPage({
               AI provider
             </h2>
             <p className="mt-1 max-w-[620px] text-body-sm text-muted-foreground">
-              RefNest talks to any OpenAI-compatible endpoint to write metadata
-              for saved references.
+              {onLocalLibrary
+                ? "RefNest talks to any OpenAI-compatible endpoint to write metadata for saved references."
+                : "The provider belongs to the library you are browsing, and is managed on the device that stores it."}
             </p>
-            <AiSettingsSection
-              state={aiState}
-              pending={aiPending}
-              actionError={aiActionError}
-              onRetry={onRetryAiSettings}
-              onSave={onSaveAiSettings}
-            />
+            {onLocalLibrary ? (
+              <AiSettingsSection
+                state={aiState}
+                pending={aiPending}
+                actionError={aiActionError}
+                onRetry={onRetryAiSettings}
+                onSave={onSaveAiSettings}
+              />
+            ) : null}
           </section>
 
           <div className="flex justify-end py-10">

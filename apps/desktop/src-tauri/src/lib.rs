@@ -1,9 +1,11 @@
 mod commands;
+mod endpoint;
 mod proxy;
 mod sidecar;
 
 use tauri::{Manager, RunEvent};
 
+use crate::endpoint::ActiveEndpoint;
 use crate::proxy::ApiProxy;
 use crate::sidecar::Sidecar;
 
@@ -34,11 +36,14 @@ pub fn run() {
 
             app.manage(Sidecar::spawn(app.handle())?);
             app.manage(ApiProxy::new());
+            app.manage(ActiveEndpoint::new());
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::api_request,
+            commands::api_request_local,
+            commands::activate_environment,
             commands::sidecar_ready
         ])
         .build(tauri::generate_context!())

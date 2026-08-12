@@ -60,6 +60,14 @@ following product-level direction:
   immediately, persist on device, and can be restored to documented defaults. Only
   settings that change this shell are shown — a preference with nothing to act on is
   not listed, which is why sidebar opacity and compact-window collapse are absent.
+- **A capture reports itself, twice.** Captures run in the sidecar, so the app shows
+  where each one is: a toast stack in the bottom-right carries live progress and then
+  the outcome, and the same stage label and bar appear in the capture-activity list
+  behind the sidebar bell. The sidecar reports stages rather than percentages, so each
+  stage owns a fixed bar width instead of a fabricated crawl. A finished capture keeps
+  its notification until it is dismissed if it failed or lost its metadata, and clears
+  itself after six seconds if it did not. Captures already finished when the app opens
+  stay silent — a result nobody waited for is history, not news.
 - **AI provider credentials are locally redacted but not keychain-backed.** The
   provider form is the one section of Settings that saves on submit rather than on
   change, so a half-typed URL or key never reaches the sidecar. API responses expose

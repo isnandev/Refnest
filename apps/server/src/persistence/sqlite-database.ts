@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite"
+import { DEFAULT_SHARE_PORT } from "@refnest/contracts"
 import { Context, Effect, Layer } from "effect"
 
 export type SqliteDatabaseShape = {
@@ -96,6 +97,50 @@ const migrate = (database: Database) => {
       updated_at TEXT NOT NULL
     );
 
+    -- Libraries this device can reach. The local sidecar is not a row: it is
+    -- always present and needs no stored address or credential.
+    CREATE TABLE IF NOT EXISTS environments (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      host TEXT NOT NULL,
+      port INTEGER NOT NULL,
+      device_token TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      last_connected_at TEXT,
+      UNIQUE(host, port)
+    );
+
+    CREATE TABLE IF NOT EXISTS sharing_settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      enabled INTEGER NOT NULL DEFAULT 0,
+      port INTEGER NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    -- Devices this machine has granted access to. Tokens are stored as a
+    -- sha-256 digest; the prefix exists only so the UI can show which is which.
+    CREATE TABLE IF NOT EXISTS shared_devices (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      token_prefix TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      last_seen_at TEXT,
+      revoked_at TEXT
+    );
+
+    -- At most one invite is outstanding at a time, so "Add a device" always
+    -- replaces the previous code rather than leaving several codes live.
+    CREATE TABLE IF NOT EXISTS pairing_invites (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      code_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      consumed_at TEXT,
+      attempts INTEGER NOT NULL DEFAULT 0
+    );
+
     CREATE INDEX IF NOT EXISTS library_folders_workspace_idx
       ON library_folders(workspace_id, parent_id);
     CREATE INDEX IF NOT EXISTS inspiration_references_workspace_idx
@@ -125,6 +170,13 @@ const migrate = (database: Database) => {
       VALUES (1, ?, ?, NULL, 0, 0, ?)
     `)
     .run("https://api.openai.com/v1", "gpt-4.1-mini", new Date().toISOString())
+
+  database
+    .query<never, [number, string]>(`
+      INSERT OR IGNORE INTO sharing_settings (id, enabled, port, updated_at)
+      VALUES (1, 0, ?, ?)
+    `)
+    .run(DEFAULT_SHARE_PORT, new Date().toISOString())
 }
 
 const openDatabase = (databasePath: string) =>

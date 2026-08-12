@@ -4,6 +4,7 @@ import { encodeHandshakeLine, Handshake } from "@refnest/contracts"
 import { Console, Effect, Layer, Redacted } from "effect"
 import { SidecarConfig } from "./config"
 import { applicationServicesLive } from "./application-services"
+import { SharingService } from "./features/sharing/sharing-service"
 import { ApiLive } from "./http/api"
 import { withBearerAuth } from "./http/auth"
 
@@ -16,12 +17,22 @@ const BunServerLive = Layer.unwrapEffect(
 )
 
 const databasePath = process.env["REFNEST_DATABASE_PATH"]?.trim() || ":memory:"
-const ApiWithPersistenceLive = ApiLive.pipe(
-  Layer.provide(applicationServicesLive(databasePath))
-)
+const ApplicationLive = applicationServicesLive(databasePath)
 
+/**
+ * Merged rather than provided, so the one application graph stays reachable
+ * below. Providing it twice would open a second SQLite connection and a second
+ * share listener against the same database.
+ */
+const ApiWithPersistenceLive = ApiLive.pipe(Layer.provideMerge(ApplicationLive))
+
+/**
+ * The device listener. The share listener is not a second branch here: it is
+ * started and stopped at runtime by `ShareListener`, so toggling sharing never
+ * drops this one's ephemeral port or the window's connection to it.
+ */
 const HttpLive = HttpApiBuilder.serve(withBearerAuth).pipe(
-  Layer.provide(ApiWithPersistenceLive),
+  Layer.provideMerge(ApiWithPersistenceLive),
   Layer.provideMerge(BunServerLive)
 )
 
@@ -49,7 +60,17 @@ const announce = Effect.gen(function* () {
   yield* Console.log(line)
 })
 
-const MainLive = Layer.effectDiscard(announce).pipe(
+/**
+ * Sharing survives a restart: if it was on when the app last closed, the LAN
+ * listener comes back. A bind failure is recorded in the sharing status rather
+ * than failing the boot — the desktop must still start when port 4317 is taken.
+ */
+const restoreSharing = Effect.gen(function* () {
+  const sharing = yield* SharingService
+  yield* sharing.restore
+})
+
+const MainLive = Layer.effectDiscard(announce.pipe(Effect.zipRight(restoreSharing))).pipe(
   Layer.provide(HttpLive),
   Layer.provide(SidecarConfig.Default)
 )

@@ -1,11 +1,11 @@
 import {
   DEFAULT_DESKTOP_SETTINGS,
-  DesktopSettings,
+  decodeStoredDesktopSettings,
   mergeDesktopSettings,
   SettingsPersistenceFailed,
   type UpdateDesktopSettings
 } from "@refnest/contracts"
-import { Effect, Layer, Schema } from "effect"
+import { Effect, Layer } from "effect"
 import { SqliteDatabase } from "../../persistence/sqlite-database"
 import { SettingsRepository } from "./settings-repository"
 
@@ -21,8 +21,6 @@ const persistenceFailure = (operation: "load" | "save") =>
         ? "Settings could not be loaded from device storage."
         : "Settings could not be saved to device storage."
   })
-
-const decodeSettings = Schema.decodeUnknownSync(DesktopSettings)
 
 const makeRepository = Effect.gen(function* () {
   const { connection: database } = yield* SqliteDatabase
@@ -58,6 +56,11 @@ const makeRepository = Effect.gen(function* () {
     WHERE id = 1
   `)
 
+  /**
+   * Lenient by design: a document written before environments existed, or one
+   * missing a field a later build added, should cost the user their
+   * preferences at worst — never the ability to open the app.
+   */
   const read = () => {
     const row = select.get()
 
@@ -65,7 +68,7 @@ const makeRepository = Effect.gen(function* () {
       throw new Error("desktop settings row is missing")
     }
 
-    return decodeSettings(JSON.parse(row.value))
+    return decodeStoredDesktopSettings(JSON.parse(row.value))
   }
 
   const get = Effect.fn("SettingsRepository.get")(function* () {
