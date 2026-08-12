@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   Plus,
   RefreshCw,
+  Replace,
   Settings2,
   Upload
 } from "lucide-react"
@@ -64,6 +65,7 @@ export function LibrarySidebar({
   onOpenQuickSave,
   onImportFiles,
   onOpenCreateFolder,
+  onOpenConverter,
   onOpenSettings,
   onRetryNavigation,
   onRetryCaptureJobs
@@ -84,6 +86,7 @@ export function LibrarySidebar({
   readonly onOpenQuickSave: () => void
   readonly onImportFiles: () => void
   readonly onOpenCreateFolder: () => void
+  readonly onOpenConverter: () => void
   readonly onOpenSettings: () => void
   readonly onRetryNavigation: () => void
   readonly onRetryCaptureJobs: () => void
@@ -301,6 +304,15 @@ export function LibrarySidebar({
       </div>
 
       <div className="m-3 mt-2 shrink-0 border-t pt-2">
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-9 w-full justify-start gap-2 rounded-sm px-2.5 text-body-sm"
+          onClick={onOpenConverter}
+        >
+          <Replace aria-hidden="true" />
+          Convert images
+        </Button>
         <Button
           type="button"
           variant="ghost"

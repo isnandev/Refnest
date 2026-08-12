@@ -20,6 +20,12 @@ import {
   ListCaptureJobs,
   QuickSaveRejected
 } from "./capture"
+import {
+  ConvertLocalImages,
+  ConvertReferenceImage,
+  ImageConversionRejected,
+  ImageConversionReport
+} from "./converter"
 import { HealthReport } from "./health"
 import {
   CreateLibraryFolder,
@@ -234,6 +240,22 @@ export const quickSaveGroup = HttpApiGroup.make("quickSave")
       .addError(QuickSaveRejected)
   )
 
+export const converterGroup = HttpApiGroup.make("converter")
+  .add(
+    HttpApiEndpoint.post("convertLocal")`/converter/images`
+      .setPayload(ConvertLocalImages)
+      .addSuccess(ImageConversionReport)
+      .addError(ImageConversionRejected)
+  )
+  .add(
+    HttpApiEndpoint.post("convertReference")`/converter/references/${referenceIdParam}`
+      .setPayload(ConvertReferenceImage)
+      .addSuccess(InspirationReference, { status: 201 })
+      .addError(ImageConversionRejected)
+      .addError(LibraryNotFound)
+      .addError(LibraryOperationFailed)
+  )
+
 export const aiGroup = HttpApiGroup.make("ai")
   .add(
     HttpApiEndpoint.get("getSettings")`/ai/settings`
@@ -267,6 +289,7 @@ export const RefNestApi = HttpApi.make("refnest")
   .add(assetsGroup)
   .add(smartFoldersGroup)
   .add(quickSaveGroup)
+  .add(converterGroup)
   .add(aiGroup)
 
 export type RefNestApi = typeof RefNestApi

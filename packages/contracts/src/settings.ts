@@ -49,6 +49,7 @@ export class DesktopSettings extends Schema.Class<DesktopSettings>(
 )({
   themePreference: ThemePreference,
   autoCollapseSidebar: Schema.Boolean,
+  autoConvertImports: Schema.Boolean,
   reduceMotion: Schema.Boolean,
   sidebarBackgroundOpacity: SidebarBackgroundOpacity,
   sidebarWidth: SidebarWidth,
@@ -63,6 +64,7 @@ export class UpdateDesktopSettings extends Schema.Class<UpdateDesktopSettings>(
 )({
   themePreference: Schema.optional(ThemePreference),
   autoCollapseSidebar: Schema.optional(Schema.Boolean),
+  autoConvertImports: Schema.optional(Schema.Boolean),
   reduceMotion: Schema.optional(Schema.Boolean),
   sidebarBackgroundOpacity: Schema.optional(SidebarBackgroundOpacity),
   sidebarWidth: Schema.optional(SidebarWidth),
@@ -90,6 +92,7 @@ export class SettingsPersistenceFailed extends Schema.TaggedError<SettingsPersis
 export const DEFAULT_DESKTOP_SETTINGS = new DesktopSettings({
   themePreference: "system",
   autoCollapseSidebar: true,
+  autoConvertImports: true,
   reduceMotion: false,
   sidebarBackgroundOpacity: 60,
   sidebarWidth: 272,
@@ -107,6 +110,7 @@ export const mergeDesktopSettings = (
     themePreference: patch.themePreference ?? current.themePreference,
     autoCollapseSidebar:
       patch.autoCollapseSidebar ?? current.autoCollapseSidebar,
+    autoConvertImports: patch.autoConvertImports ?? current.autoConvertImports,
     reduceMotion: patch.reduceMotion ?? current.reduceMotion,
     sidebarBackgroundOpacity:
       patch.sidebarBackgroundOpacity ?? current.sidebarBackgroundOpacity,

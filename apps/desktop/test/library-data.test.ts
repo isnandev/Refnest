@@ -14,10 +14,10 @@ import {
 } from "@/features/library/library-data"
 import {
   formatDimensions,
-  formatFileSize,
   referenceAspectRatio
 } from "@/features/library/library-format"
 import { referenceImagePath } from "@/features/library/use-reference-assets"
+import { formatFileSize } from "@/lib/format"
 
 const workspaceId = WorkspaceId.make("workspace_test")
 const rootId = FolderId.make("folder_root")

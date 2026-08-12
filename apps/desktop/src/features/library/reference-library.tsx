@@ -3,9 +3,12 @@ import {
   type Workspace
 } from "@refnest/contracts"
 import { PanelRightClose, PanelRightOpen } from "lucide-react"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { AppCommandMenu } from "@/features/commands/app-command-menu"
+import { ConvertReferenceDialog } from "@/features/converter/convert-reference-dialog"
+import { useImageConverter } from "@/features/converter/use-image-converter"
 import { SidebarResizeHandle } from "@/features/shell/sidebar-resize-handle"
 import {
   useSidebar,
@@ -36,6 +39,7 @@ export function ReferenceLibrary({
   onCreateWorkspace,
   onSidebarPreferencesChange,
   onOpenSettings,
+  onOpenConverter,
   onToggleTheme
 }: {
   readonly workspaceState: WorkspacesState
@@ -50,6 +54,7 @@ export function ReferenceLibrary({
     preferences: SidebarPreferences
   ) => void
   readonly onOpenSettings: () => void
+  readonly onOpenConverter: () => void
   readonly onToggleTheme: () => void
 }) {
   const workspaceId = selectedWorkspace?.id ?? null
@@ -101,6 +106,8 @@ export function ReferenceLibrary({
     moveSelectedToTrash,
     restoreSelected
   } = useReferenceLibrary(workspaceId)
+  const converter = useImageConverter()
+  const [convertOpen, setConvertOpen] = useState(false)
   const referencesError =
     workspaceState.status === "failed"
       ? workspaceState.message
@@ -118,6 +125,10 @@ export function ReferenceLibrary({
   const openCreateFolder = () => {
     library.clearActionError()
     setFolderCreateOpen(true)
+  }
+  const openConvert = () => {
+    converter.clearActionError()
+    setConvertOpen(true)
   }
 
   return (
@@ -159,6 +170,7 @@ export function ReferenceLibrary({
             onOpenQuickSave={openQuickSave}
             onImportFiles={importFiles}
             onOpenCreateFolder={openCreateFolder}
+            onOpenConverter={onOpenConverter}
             onOpenSettings={onOpenSettings}
             onRetryNavigation={() => void library.refreshNavigation()}
             onRetryCaptureJobs={() => void quickSave.refresh()}
@@ -271,7 +283,9 @@ export function ReferenceLibrary({
                 folderLabel={currentFolderLabel}
                 itemCount={currentFolderCount}
                 canEnrich={aiEnabled}
-                pending={library.pending || referenceImport.pending}
+                pending={
+                  library.pending || referenceImport.pending || converter.pending
+                }
                 actionError={
                   referenceImport.actionError ?? library.actionError
                 }
@@ -287,6 +301,7 @@ export function ReferenceLibrary({
                 onTrash={() => void moveSelectedToTrash()}
                 onRestore={() => void restoreSelected()}
                 onEnrich={() => void enrichSelected()}
+                onConvert={openConvert}
                 onOpenSource={() => {
                   if (
                     selectedItem !== null &&
@@ -338,6 +353,32 @@ export function ReferenceLibrary({
           (await quickSave.create(url, parentFolder?.id ?? null, autoMetadata)) !==
           null
         }
+      />
+
+      <ConvertReferenceDialog
+        open={convertOpen}
+        referenceTitle={selectedItem?.title ?? "This image"}
+        destinationLabel={
+          parentFolder?.label ?? selectedWorkspace?.name ?? "workspace root"
+        }
+        pending={converter.pending}
+        actionError={converter.actionError}
+        onOpenChange={setConvertOpen}
+        onConvert={async (format, quality) => {
+          if (selectedItem === null || workspaceId === null) return false
+
+          const created = await converter.convertReference(
+            selectedItem.id,
+            workspaceId,
+            parentFolder?.id ?? null,
+            format,
+            quality
+          )
+          if (created === null) return false
+
+          await library.refreshReferences()
+          return true
+        }}
       />
 
       <FolderCreateDialog

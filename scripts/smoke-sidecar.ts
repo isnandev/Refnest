@@ -1,4 +1,5 @@
-import { access } from "node:fs/promises"
+import { access, mkdtemp } from "node:fs/promises"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { decodeHandshakeLine, HANDSHAKE_PREFIX } from "@refnest/contracts"
 import { Effect } from "effect"
@@ -14,6 +15,16 @@ import {
  * so the contract can be proven without building the desktop app.
  */
 const repoRoot = join(import.meta.dir, "..")
+
+/**
+ * A real 8x8 PNG. The image codecs are wasm modules embedded by
+ * `bun build --compile`, so only the compiled binary can prove they load.
+ */
+const SAMPLE_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAABE0lEQVR4AQEIAff+AAAAyP8eD8j/PB7I/1otyP94PMj/lkvI/7RayP/Sacj/APB4yP8Oh8j/LJbI/0qlyP9otMj/hsPI/6TSyP/C4cj/AODwyP/+/8j/HA7I/zodyP9YLMj/djvI/5RKyP+yWcj/ANBoyP/ud8j/DIbI/yqVyP9IpMj/ZrPI/4TCyP+i0cj/AMDgyP/e78j//P7I/xoNyP84HMj/VivI/3Q6yP+SScj/ALBYyP/OZ8j/7HbI/wqFyP8olMj/RqPI/2SyyP+Cwcj/AKDQyP++38j/3O7I//r9yP8YDMj/NhvI/1QqyP9yOcj/AJBIyP+uV8j/zGbI/+p1yP8IhMj/JpPI/0SiyP9iscj/p8+wIUcV05UAAAAASUVORK5CYII=",
+  "base64"
+)
+
 const artifact = resolveSidecarArtifact()
 const stdioArtifact = resolveMcpStdioArtifact()
 
@@ -116,6 +127,51 @@ try {
   })
   await call("reload settings", "/settings", { headers: authorized })
 
+  const conversionDirectory = await mkdtemp(join(tmpdir(), "refnest-smoke-"))
+  const conversionSource = join(conversionDirectory, "sample.png")
+  await Bun.write(conversionSource, SAMPLE_PNG)
+  await call("convert image", "/converter/images", {
+    method: "POST",
+    headers: { ...authorized, "content-type": "application/json" },
+    body: JSON.stringify({
+      paths: [conversionSource],
+      outputDirectory: conversionDirectory,
+      format: "webp",
+      quality: 80
+    })
+  })
+  const conversionReport = checks.at(-1)?.[2] as
+    | { converted?: ReadonlyArray<{ outputPath?: unknown }> }
+    | undefined
+  const convertedPath = conversionReport?.converted?.[0]?.outputPath
+  const conversionProduced =
+    typeof convertedPath === "string" &&
+    (await Bun.file(convertedPath).exists())
+
+  // Imports re-encode to JPEG and attach a downscaled preview for the AI.
+  const workspaces = checks.find(([label]) => label === "list workspaces")?.[2] as
+    | ReadonlyArray<{ id?: unknown }>
+    | undefined
+  const workspaceId = workspaces?.[0]?.id
+  let importConverted = false
+  if (typeof workspaceId === "string") {
+    await call("import reference", "/references/import", {
+      method: "POST",
+      headers: { ...authorized, "content-type": "application/json" },
+      body: JSON.stringify({
+        workspaceId,
+        folderId: null,
+        path: conversionSource
+      })
+    })
+    const imported = checks.at(-1)?.[2] as
+      | { mimeType?: unknown; previewUrl?: unknown }
+      | undefined
+    importConverted =
+      imported?.mimeType === "image/jpeg" &&
+      typeof imported.previewUrl === "string"
+  }
+
   const initializeRequest = {
     jsonrpc: "2.0",
     id: 101,
@@ -215,14 +271,18 @@ try {
   if (
     failed.length > 0 ||
     negotiatedProtocol !== REFNEST_MCP_PROTOCOL_VERSION ||
-    !bridgePassed
+    !bridgePassed ||
+    !conversionProduced ||
+    !importConverted
   ) {
     const labels = [
       ...failed.map(([label]) => label),
       ...(negotiatedProtocol === REFNEST_MCP_PROTOCOL_VERSION
         ? []
         : ["MCP protocol negotiation"]),
-      ...(bridgePassed ? [] : ["MCP stdio bridge"])
+      ...(bridgePassed ? [] : ["MCP stdio bridge"]),
+      ...(conversionProduced ? [] : ["image conversion output"]),
+      ...(importConverted ? [] : ["import conversion and preview"])
     ]
     console.error(`smoke failed: ${labels.join(", ")}`)
     process.exitCode = 1

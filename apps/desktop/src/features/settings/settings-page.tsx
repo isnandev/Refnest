@@ -9,6 +9,7 @@ import {
   Check,
   Monitor,
   Moon,
+  Replace,
   RotateCcw,
   Settings2,
   Sun
@@ -165,6 +166,29 @@ export function SettingsPage({
                   onCheckedChange={(checked) =>
                     onSettingChange(
                       new UpdateDesktopSettings({ reduceMotion: checked })
+                    )
+                  }
+                />
+              </SettingRow>
+            </Card>
+          </section>
+
+          <section className="pt-10" aria-labelledby="library-title">
+            <h2 id="library-title" className="text-h2">
+              Library
+            </h2>
+            <Card className="mt-3 gap-0 overflow-hidden p-0">
+              <SettingRow
+                icon={Replace}
+                title="Auto-convert imported images"
+                description="Re-encode imported PNG and WebP files to JPEG, which every AI provider reads and which keeps the library smaller. Transparency is flattened onto white and the original file is not kept, so turn this off to import images exactly as they are. Downscaled AI previews are generated either way."
+              >
+                <SettingToggle
+                  checked={settings.autoConvertImports}
+                  label="Auto-convert imported images"
+                  onCheckedChange={(checked) =>
+                    onSettingChange(
+                      new UpdateDesktopSettings({ autoConvertImports: checked })
                     )
                   }
                 />

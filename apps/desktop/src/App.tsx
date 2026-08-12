@@ -5,6 +5,7 @@ import {
 } from "@refnest/contracts"
 import { useCallback, useState } from "react"
 
+import { ConverterPage } from "@/features/converter/converter-page"
 import { ReferenceLibrary } from "@/features/library/reference-library"
 import { SettingsPage } from "@/features/settings/settings-page"
 import { useAiSettings } from "@/features/settings/use-ai-settings"
@@ -21,6 +22,7 @@ export default function App() {
   const settings = appSettings.settings
   const settingsReady = appSettings.status !== "loading"
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [converterOpen, setConverterOpen] = useState(false)
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false)
 
   useWindowPersistence(
@@ -82,6 +84,8 @@ export default function App() {
           onReset={appSettings.resetPreferences}
           onClose={() => setSettingsOpen(false)}
         />
+      ) : converterOpen ? (
+        <ConverterPage onClose={() => setConverterOpen(false)} />
       ) : (
         <ReferenceLibrary
           workspaceState={workspaces.state}
@@ -103,6 +107,7 @@ export default function App() {
             aiSettings.clearActionError()
             setSettingsOpen(true)
           }}
+          onOpenConverter={() => setConverterOpen(true)}
           onToggleTheme={theme.toggle}
         />
       )}

@@ -4,6 +4,8 @@ import { AiServiceLive } from "./features/ai/ai-service"
 import { AiProviderPolicyLive } from "./features/ai/ai-provider-policy"
 import { AiSettingsRepositoryLive } from "./features/ai/ai-settings-repository"
 import { OpenAiCompatibleClientLive } from "./features/ai/openai-compatible-client"
+import { ImageCodecLive } from "./features/converter/image-codec"
+import { ImageConverterLive } from "./features/converter/image-converter-service"
 import { FolderServiceLive } from "./features/folders/folder-service"
 import { BrowserCaptureLive } from "./features/quick-save/browser-capture"
 import {
@@ -55,11 +57,22 @@ export const applicationServicesLive = (
   const references = ReferenceServiceLive.pipe(
     Layer.provide(Layer.merge(infrastructure, folders))
   )
+  // One codec instance: Effect memoises the layer, so the wasm modules are
+  // compiled once and shared by imports and the converter feature.
+  const imageCodec = ImageCodecLive
+  // Settings only need the database, so they sit beside the other
+  // infrastructure and the import pipeline can read the auto-convert flag.
+  const settings = settingsRepositoryLive.pipe(Layer.provide(infrastructure))
   const referenceImports = ReferenceImportServiceLive.pipe(
-    Layer.provide(Layer.merge(folders, references))
+    Layer.provide(
+      Layer.mergeAll(infrastructure, folders, references, imageCodec, settings)
+    )
   )
   const assets = AssetServiceLive.pipe(
     Layer.provide(infrastructure)
+  )
+  const converter = ImageConverterLive.pipe(
+    Layer.provide(Layer.mergeAll(imageCodec, references, folders, assets))
   )
   const outboundPolicy = options.outboundUrlPolicy ?? OutboundUrlPolicyLive
   const captureHttp = CaptureHttpClientLive.pipe(
@@ -128,11 +141,13 @@ export const applicationServicesLive = (
 
   const services = Layer.mergeAll(
     infrastructure,
+    settings,
     workspaces,
     folders,
     references,
     referenceImports,
     assets,
+    converter,
     smartFolders,
     aiSettings,
     openAiClient,
@@ -148,5 +163,5 @@ export const applicationServicesLive = (
     quickSave
   )
 
-  return settingsRepositoryLive.pipe(Layer.provideMerge(services))
+  return services
 }

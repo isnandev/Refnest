@@ -9,6 +9,7 @@ import { Context, Effect, Layer } from "effect"
 import { constants } from "node:fs"
 import { copyFile, lstat, realpath } from "node:fs/promises"
 import { basename, isAbsolute, join, parse, resolve } from "node:path"
+import { AppPaths } from "../../persistence/app-paths"
 import {
   prepareContainedPath,
   removeContainedFile,
@@ -19,8 +20,16 @@ import {
   extensionForAssetMimeType,
   mimeTypeMatches
 } from "../assets/asset-mime"
+import { formatForMimeType, ImageCodec } from "../converter/image-codec"
+import { MAX_CONVERTIBLE_IMAGE_BYTES } from "../converter/image-conversion"
+import {
+  buildImportDerivatives,
+  type ImportDerivatives,
+  IMPORT_TARGET_EXTENSION
+} from "../converter/import-derivatives"
 import { FolderService } from "../folders/folder-service"
 import { MAX_CAPTURE_OUTPUT_BYTES } from "../quick-save/capture-limits"
+import { SettingsRepository } from "../settings/settings-repository"
 import { ReferenceService, type StoredReference } from "./reference-service"
 
 type LocalImportFile = {
@@ -112,9 +121,77 @@ const inspectLocalFile = (path: string) =>
     catch: () => failure("The selected file could not be imported safely.")
   })
 
+/** Only formats the codec can read are candidates; the rest copy through. */
+const isConvertibleImport = (source: LocalImportFile) =>
+  source.kind === "image" &&
+  source.size <= MAX_CONVERTIBLE_IMAGE_BYTES &&
+  formatForMimeType(source.mimeType) !== null
+
+const verifyWritten = (
+  root: string,
+  path: string,
+  expectedMimeType: string,
+  expectedSize: number
+) =>
+  Effect.gen(function* () {
+    const written = yield* Effect.try({
+      try: () => resolveContainedFile(root, path),
+      catch: () => failure("The imported file could not be verified.")
+    })
+    if (written.size !== expectedSize) {
+      return yield* failure("The selected file changed while it was being imported.")
+    }
+
+    const header = yield* Effect.tryPromise({
+      try: async () =>
+        new Uint8Array(
+          await Bun.file(written.path)
+            .slice(0, Math.min(written.size, 65_536))
+            .arrayBuffer()
+        ),
+      catch: () => failure("The imported file could not be verified.")
+    })
+    const detected = detectAssetMimeType(header)
+    if (detected === null || !mimeTypeMatches(expectedMimeType, detected)) {
+      return yield* failure("The selected file changed while it was being imported.")
+    }
+
+    return written
+  })
+
 const makeReferenceImportService = Effect.gen(function* () {
   const folders = yield* FolderService
   const references = yield* ReferenceService
+  const appPaths = yield* AppPaths
+  const codec = yield* ImageCodec
+  const settings = yield* SettingsRepository
+
+  /**
+   * Conversion is best effort: a file the codec cannot handle is still worth
+   * importing, so a failure here falls back to copying the original bytes.
+   */
+  const convertImport = (source: LocalImportFile) =>
+    !isConvertibleImport(source)
+      ? Effect.succeed(null)
+      : Effect.gen(function* () {
+          // A settings read that fails must not block the import, so the
+          // documented default applies when storage is unavailable.
+          const convertAsset = yield* settings
+            .get()
+            .pipe(
+              Effect.map((current) => current.autoConvertImports),
+              Effect.catchAll(() => Effect.succeed(true))
+            )
+          const bytes = yield* Effect.tryPromise({
+            try: async () =>
+              new Uint8Array(await Bun.file(source.path).arrayBuffer()),
+            catch: () => failure("The selected file could not be read.")
+          })
+          return yield* buildImportDerivatives(bytes, convertAsset)
+        }).pipe(
+          Effect.provideService(ImageCodec, codec),
+          Effect.catchAll(() => Effect.succeed(null))
+        )
 
   const importLocal = Effect.fn("ReferenceImportService.importLocal")(
     function* (input: ImportLocalReference) {
@@ -123,54 +200,86 @@ const makeReferenceImportService = Effect.gen(function* () {
         input.workspaceId,
         input.folderId
       )
+      const converted: ImportDerivatives | null = yield* convertImport(source)
+      const importId = crypto.randomUUID()
+      const convertedAsset = converted?.asset ?? null
+      const extension =
+        convertedAsset === null ? source.extension : IMPORT_TARGET_EXTENSION
+      const mimeType =
+        convertedAsset === null ? source.mimeType : convertedAsset.mimeType
+
       const output = yield* Effect.try({
         try: () =>
           prepareContainedPath(
             destination.workspace.path,
-            join(
-              destination.absolutePath,
-              `reference-import-${crypto.randomUUID()}${source.extension}`
-            )
+            join(destination.absolutePath, `reference-import-${importId}${extension}`)
           ),
         catch: () =>
           failure("The selected library destination is not safe to write.")
       })
+      const preview =
+        converted === null
+          ? null
+          : yield* Effect.try({
+              try: () =>
+                prepareContainedPath(
+                  appPaths.previewsDirectory,
+                  join(
+                    appPaths.previewsDirectory,
+                    `reference-import-${importId}${IMPORT_TARGET_EXTENSION}`
+                  )
+                ),
+              catch: () =>
+                failure("The preview destination is not safe to write.")
+            })
+
       const cleanup = Effect.sync(() => {
         try {
           removeContainedFile(destination.workspace.path, output.path)
         } catch {
           // Cleanup never broadens beyond the selected workspace.
         }
+        if (preview === null) return
+        try {
+          removeContainedFile(appPaths.previewsDirectory, preview.path)
+        } catch {
+          // A missing preview is not worth failing the cleanup over.
+        }
       })
 
       const persist = Effect.gen(function* () {
-        yield* Effect.tryPromise({
-          try: () => copyFile(source.path, output.path, constants.COPYFILE_EXCL),
-          catch: () => failure("The selected file could not be copied into the library.")
-        })
-        const copied = yield* Effect.try({
-          try: () => resolveContainedFile(destination.workspace.path, output.path),
-          catch: () => failure("The imported file could not be verified.")
-        })
-        if (copied.size !== source.size) {
-          return yield* failure("The selected file changed while it was being imported.")
+        if (convertedAsset === null) {
+          yield* Effect.tryPromise({
+            try: () => copyFile(source.path, output.path, constants.COPYFILE_EXCL),
+            catch: () => failure("The selected file could not be copied into the library.")
+          })
+        } else {
+          yield* Effect.tryPromise({
+            try: () => Bun.write(output.path, convertedAsset.bytes),
+            catch: () => failure("The converted image could not be written into the library.")
+          })
         }
 
-        const copiedHeader = yield* Effect.tryPromise({
-          try: async () =>
-            new Uint8Array(
-              await Bun.file(copied.path)
-                .slice(0, Math.min(copied.size, 65_536))
-                .arrayBuffer()
-            ),
-          catch: () => failure("The imported file could not be verified.")
-        })
-        const copiedMimeType = detectAssetMimeType(copiedHeader)
-        if (
-          copiedMimeType === null ||
-          !mimeTypeMatches(source.mimeType, copiedMimeType)
-        ) {
-          return yield* failure("The selected file changed while it was being imported.")
+        const written = yield* verifyWritten(
+          destination.workspace.path,
+          output.path,
+          mimeType,
+          convertedAsset === null ? source.size : convertedAsset.bytes.byteLength
+        )
+
+        if (converted !== null && preview !== null) {
+          yield* Effect.tryPromise({
+            try: () => Bun.write(preview.path, converted.preview.bytes),
+            catch: () => failure("The reference preview could not be written.")
+          })
+          // A reference whose preview is missing fails to decode later, so the
+          // preview is verified before the row is created.
+          yield* verifyWritten(
+            appPaths.previewsDirectory,
+            preview.path,
+            converted.preview.mimeType,
+            converted.preview.bytes.byteLength
+          )
         }
 
         return yield* references.createCaptured({
@@ -181,13 +290,15 @@ const makeReferenceImportService = Effect.gen(function* () {
           sourceUrl: `https://local.refnest.invalid/${encodeURIComponent(source.name)}`,
           source: "local-file",
           kind: source.kind,
-          assetPath: copied.path,
-          previewPath: null,
-          mimeType: source.mimeType,
-          width: null,
-          height: null,
+          assetPath: written.path,
+          previewPath: preview?.path ?? null,
+          mimeType,
+          // Recorded from the decode, so dimensions land even when the
+          // original bytes are kept.
+          width: converted?.width ?? null,
+          height: converted?.height ?? null,
           durationSeconds: null,
-          fileSizeBytes: copied.size,
+          fileSizeBytes: written.size,
           tags: [],
           colors: []
         })

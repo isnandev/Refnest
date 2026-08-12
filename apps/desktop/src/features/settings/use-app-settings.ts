@@ -14,6 +14,7 @@ import { appRuntime } from "@/lib/runtime"
 export type AppSettings = Pick<
   DesktopSettings,
   | "autoCollapseSidebar"
+  | "autoConvertImports"
   | "reduceMotion"
   | "sidebarBackgroundOpacity"
 >
@@ -162,6 +163,7 @@ export const useAppSettings = () => {
       new UpdateDesktopSettings({
         themePreference: DEFAULT_DESKTOP_SETTINGS.themePreference,
         autoCollapseSidebar: DEFAULT_DESKTOP_SETTINGS.autoCollapseSidebar,
+        autoConvertImports: DEFAULT_DESKTOP_SETTINGS.autoConvertImports,
         reduceMotion: DEFAULT_DESKTOP_SETTINGS.reduceMotion,
         sidebarBackgroundOpacity:
           DEFAULT_DESKTOP_SETTINGS.sidebarBackgroundOpacity

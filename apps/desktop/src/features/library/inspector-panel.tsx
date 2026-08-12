@@ -3,6 +3,7 @@ import {
   ExternalLink,
   Heart,
   Image as ImageIcon,
+  Replace,
   RotateCcw,
   Sparkles,
   Tag,
@@ -11,10 +12,10 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { formatFileSize } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import {
   formatDimensions,
-  formatFileSize,
   formatLibraryDate,
   formatReferenceKind,
   formatReferenceSource
@@ -44,6 +45,7 @@ export function InspectorPanel({
   onTrash,
   onRestore,
   onEnrich,
+  onConvert,
   onOpenSource
 }: {
   readonly item: InspirationReference | null
@@ -59,6 +61,7 @@ export function InspectorPanel({
   readonly onTrash: () => void
   readonly onRestore: () => void
   readonly onEnrich: () => void
+  readonly onConvert: () => void
   readonly onOpenSource: () => void
 }) {
   return (
@@ -224,6 +227,18 @@ export function InspectorPanel({
 
       {item !== null && (
         <div className="grid shrink-0 gap-2 border-t p-3">
+          {item.kind === "image" && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={pending || item.status === "trash"}
+              onClick={onConvert}
+            >
+              <Replace aria-hidden="true" />
+              Convert image…
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
