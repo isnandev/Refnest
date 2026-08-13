@@ -150,6 +150,11 @@ tool operation is workspace-scoped, destructive tools require `confirm:true`,
 Quick Save returns a queued job for later observation, and AI settings never
 accept or return an API key. Asset and preview resources are verified by the
 hardened asset service and are limited to 16 MiB per MCP read.
+`refnest_update_reference` exposes the same safe editable metadata as the
+inspector, including folder, title, description, source URL, favourite, rating,
+tags, and colours; trash and restore remain separate tools. While the library
+window is visible, RefNest silently refreshes it after external MCP writes so
+folder and reference changes appear without a manual reload.
 
 The server registers these tools:
 

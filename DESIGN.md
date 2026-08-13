@@ -82,6 +82,12 @@ following product-level direction:
   Settings. The token is masked by default, copy feedback is explicit, and the
   page warns that the session credential grants control of the local library
   and rotates on restart.
+- **MCP writes rejoin the visible library silently.** A mutation made through
+  MCP bypasses React's local mutation callbacks, so the open library refreshes
+  folders, smart folders, and references every 1.5 seconds while the document
+  is visible and once when it regains focus. These background reads keep the
+  last good snapshot instead of flashing loading or failure states, and
+  overlapping LAN requests are coalesced rather than queued.
 - **AI enrichment must inspect an image before it may describe one.** The
   sidecar verifies and bounds the stored preview or asset, attaches it inline,
   and derives the dominant colour swatches from the decoded pixels so provider

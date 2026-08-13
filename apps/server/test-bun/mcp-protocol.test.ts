@@ -196,6 +196,13 @@ describe("RefNest MCP protocol", () => {
         tools.find(({ name }) => name === "refnest_update_ai_settings")
           ?.inputSchema.properties
       ).not.toHaveProperty("apiKey")
+      expect(
+        tools.find(({ name }) => name === "refnest_update_reference")
+          ?.inputSchema.properties
+      ).toMatchObject({
+        sourceUrl: expect.any(Object),
+        rating: expect.any(Object)
+      })
 
       const listedTemplates = await client.request("resources/templates/list")
       const resourceTemplates = listedTemplates.resourceTemplates as Array<{
@@ -385,12 +392,21 @@ describe("RefNest MCP protocol", () => {
           workspaceId,
           referenceId: reference.id,
           title: "Updated through MCP",
-          favorite: true
+          sourceUrl: "https://example.com/updated-through-mcp",
+          favorite: true,
+          rating: 4
         })
-      ).reference as { title: string; favorite: boolean }
+      ).reference as {
+        title: string
+        sourceUrl: string
+        favorite: boolean
+        rating: number
+      }
       expect(updatedReference).toMatchObject({
         title: "Updated through MCP",
-        favorite: true
+        sourceUrl: "https://example.com/updated-through-mcp",
+        favorite: true,
+        rating: 4
       })
       const unconfirmedTrash = await callTool(
         client,

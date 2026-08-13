@@ -1,7 +1,5 @@
 import {
   ConnectEnvironment,
-  DEFAULT_SHARE_PORT,
-  parseConnectString,
   type Environment
 } from "@refnest/contracts"
 import { Plus } from "lucide-react"
@@ -10,6 +8,12 @@ import { useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  emptyConnectEnvironmentDraft,
+  resolveConnectEnvironmentDraft,
+  updateConnectEnvironmentPart,
+  updateConnectString
+} from "./connect-environment-draft"
 
 /**
  * Accepts the connect string the host displays, and falls back to the three
@@ -24,17 +28,11 @@ export function ConnectEnvironmentForm({
   readonly onConnect: (payload: ConnectEnvironment) => Promise<Environment | null>
 }) {
   const [open, setOpen] = useState(false)
-  const [connectString, setConnectString] = useState("")
-  const [host, setHost] = useState("")
-  const [port, setPort] = useState(String(DEFAULT_SHARE_PORT))
-  const [code, setCode] = useState("")
+  const [draft, setDraft] = useState(emptyConnectEnvironmentDraft)
   const [problem, setProblem] = useState<string | null>(null)
 
   const reset = () => {
-    setConnectString("")
-    setHost("")
-    setPort(String(DEFAULT_SHARE_PORT))
-    setCode("")
+    setDraft(emptyConnectEnvironmentDraft())
     setProblem(null)
   }
 
@@ -42,10 +40,7 @@ export function ConnectEnvironmentForm({
     event.preventDefault()
     setProblem(null)
 
-    const parsed =
-      connectString.trim().length > 0
-        ? parseConnectString(connectString)
-        : parseConnectString(`${host.trim()}:${port.trim()}/${code.trim()}`)
+    const parsed = resolveConnectEnvironmentDraft(draft)
 
     if (parsed === null) {
       setProblem(
@@ -90,8 +85,10 @@ export function ConnectEnvironmentForm({
           id="connect-string"
           placeholder="refnest://192.168.1.20:4317/K7M2QW9X"
           className="mt-1"
-          value={connectString}
-          onChange={(event) => setConnectString(event.target.value)}
+          value={draft.connectString}
+          onChange={(event) =>
+            setDraft((current) => updateConnectString(current, event.target.value))
+          }
         />
       </div>
 
@@ -106,8 +103,12 @@ export function ConnectEnvironmentForm({
             id="connect-host"
             placeholder="192.168.1.20"
             className="mt-1 w-44"
-            value={host}
-            onChange={(event) => setHost(event.target.value)}
+            value={draft.host}
+            onChange={(event) =>
+              setDraft((current) =>
+                updateConnectEnvironmentPart(current, { host: event.target.value })
+              )
+            }
           />
         </div>
         <div>
@@ -116,8 +117,12 @@ export function ConnectEnvironmentForm({
             id="connect-port"
             inputMode="numeric"
             className="mt-1 w-24"
-            value={port}
-            onChange={(event) => setPort(event.target.value)}
+            value={draft.port}
+            onChange={(event) =>
+              setDraft((current) =>
+                updateConnectEnvironmentPart(current, { port: event.target.value })
+              )
+            }
           />
         </div>
         <div>
@@ -125,8 +130,14 @@ export function ConnectEnvironmentForm({
           <Input
             id="connect-code"
             className="numeric mt-1 w-40 tracking-[0.15em] uppercase"
-            value={code}
-            onChange={(event) => setCode(event.target.value.toUpperCase())}
+            value={draft.code}
+            onChange={(event) =>
+              setDraft((current) =>
+                updateConnectEnvironmentPart(current, {
+                  code: event.target.value.toUpperCase()
+                })
+              )
+            }
           />
         </div>
       </div>

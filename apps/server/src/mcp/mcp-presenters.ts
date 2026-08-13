@@ -58,6 +58,7 @@ export const presentReference = (reference: InspirationReference) => ({
   durationSeconds: reference.durationSeconds,
   fileSizeBytes: reference.fileSizeBytes,
   favorite: reference.favorite,
+  rating: reference.rating,
   status: reference.status,
   tags: [...reference.tags],
   colors: [...reference.colors],

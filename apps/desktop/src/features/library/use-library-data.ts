@@ -138,70 +138,86 @@ export const useLibraryData = (
   const [actionError, setActionError] = useState<string | null>(null)
   const navigationRequest = useRef(0)
   const referencesRequest = useRef(0)
+  const navigationInFlight = useRef(0)
+  const referencesInFlight = useRef(0)
 
-  const refreshNavigation = useCallback(async () => {
+  const refreshNavigation = useCallback(async (silent = false) => {
+    if (silent && navigationInFlight.current > 0) return
     const request = ++navigationRequest.current
     if (workspaceId === null) {
       setNavigation({ status: "loading", ...EMPTY_NAVIGATION })
       return
     }
 
-    setNavigation((current) => ({
-      status: "loading",
-      folders: current.folders,
-      smartFolders: current.smartFolders
-    }))
-    const result = await appRuntime.runPromise(
-      Effect.either(listNavigation(workspaceId))
-    )
+    if (!silent) {
+      setNavigation((current) => ({
+        status: "loading",
+        folders: current.folders,
+        smartFolders: current.smartFolders
+      }))
+    }
+    navigationInFlight.current += 1
+    const result = await appRuntime
+      .runPromise(Effect.either(listNavigation(workspaceId)))
+      .finally(() => {
+        navigationInFlight.current -= 1
+      })
 
     if (request !== navigationRequest.current) return
-    setNavigation(
-      result._tag === "Right"
-        ? { status: "ready", ...result.right }
-        : {
-            status: "failed",
-            folders: [],
-            smartFolders: [],
-            message: result.left.message
-          }
-    )
+    if (result._tag === "Right") {
+      setNavigation({ status: "ready", ...result.right })
+    } else if (!silent) {
+      setNavigation({
+        status: "failed",
+        folders: [],
+        smartFolders: [],
+        message: result.left.message
+      })
+    }
   }, [workspaceId])
 
-  const refreshReferences = useCallback(async () => {
+  const refreshReferences = useCallback(async (silent = false) => {
+    if (silent && referencesInFlight.current > 0) return
     const request = ++referencesRequest.current
     if (workspaceId === null) {
       setReferenceState({ status: "loading", ...EMPTY_REFERENCES })
       return
     }
 
-    setReferenceState((current) => ({
-      status: "loading",
-      references: current.references
-    }))
-    const result = await appRuntime.runPromise(
-      Effect.either(
-        listReferences(
-          workspaceId,
-          selection,
-          query,
-          includeSubfolders,
-          sort,
-          direction
+    if (!silent) {
+      setReferenceState((current) => ({
+        status: "loading",
+        references: current.references
+      }))
+    }
+    referencesInFlight.current += 1
+    const result = await appRuntime
+      .runPromise(
+        Effect.either(
+          listReferences(
+            workspaceId,
+            selection,
+            query,
+            includeSubfolders,
+            sort,
+            direction
+          )
         )
       )
-    )
+      .finally(() => {
+        referencesInFlight.current -= 1
+      })
 
     if (request !== referencesRequest.current) return
-    setReferenceState(
-      result._tag === "Right"
-        ? { status: "ready", references: result.right }
-        : {
-            status: "failed",
-            references: [],
-            message: result.left.message
-          }
-    )
+    if (result._tag === "Right") {
+      setReferenceState({ status: "ready", references: result.right })
+    } else if (!silent) {
+      setReferenceState({
+        status: "failed",
+        references: [],
+        message: result.left.message
+      })
+    }
   }, [direction, includeSubfolders, query, selection, sort, workspaceId])
 
   useEffect(() => {
@@ -384,6 +400,10 @@ export const useLibraryData = (
     () => Promise.all([refreshNavigation(), refreshReferences()]),
     [refreshNavigation, refreshReferences]
   )
+  const sync = useCallback(
+    () => Promise.all([refreshNavigation(true), refreshReferences(true)]),
+    [refreshNavigation, refreshReferences]
+  )
 
   return {
     navigation,
@@ -392,6 +412,7 @@ export const useLibraryData = (
     actionError,
     clearActionError: useCallback(() => setActionError(null), []),
     refresh,
+    sync,
     refreshNavigation,
     refreshReferences,
     loadReference,

@@ -24,6 +24,7 @@ import { parseTagList } from "./library-format"
 import { useDebouncedValue } from "./use-debounced-value"
 import { useLibraryData } from "./use-library-data"
 import { useLibraryShortcuts } from "./use-library-shortcuts"
+import { useLibrarySync } from "./use-library-sync"
 import { useQuickSave } from "./use-quick-save"
 import {
   referenceVideoPath,
@@ -83,6 +84,7 @@ export const useReferenceLibrary = ({
     view.sort,
     view.sortDirection
   )
+  useLibrarySync(workspaceId !== null, library.sync)
   const quickSave = useQuickSave(workspaceId, () => {
     void library.refresh()
   })
@@ -123,6 +125,16 @@ export const useReferenceLibrary = ({
     setSearchQuery("")
     setActiveFilter("All")
   }, [workspaceId])
+
+  useEffect(() => {
+    if (activeItem === null || library.references.status !== "ready") return
+    const refreshed = library.references.references.find(
+      (reference) => reference.id === activeItem.id
+    )
+    if (refreshed !== undefined && refreshed !== activeItem) {
+      setActiveItem(refreshed)
+    }
+  }, [activeItem, library.references])
 
   const collectionFolders = useMemo(
     () => buildFolderTree(library.navigation.folders),

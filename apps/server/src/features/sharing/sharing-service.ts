@@ -3,7 +3,6 @@ import {
   formatConnectString,
   PairedDeviceId,
   PairingInvite,
-  SharingAddress,
   SharingFailed,
   SharingRejected,
   SharingStatus,
@@ -11,11 +10,10 @@ import {
   type UpdateSharing
 } from "@refnest/contracts"
 import { Context, Effect, Layer, Ref, Schema } from "effect"
-import { networkInterfaces } from "node:os"
 import { deviceName } from "../../device-identity"
-import { isPrivateNetworkAddress } from "../../security/private-network"
 import { PairingService } from "./pairing-service"
 import { ShareListener } from "./share-listener"
+import { localSharingAddresses } from "./sharing-addresses"
 import { SharingSettingsRepository } from "./sharing-settings-repository"
 
 /**
@@ -25,22 +23,6 @@ import { SharingSettingsRepository } from "./sharing-settings-repository"
 const BIND_HOSTNAME = "0.0.0.0"
 
 const decodeInstant = Schema.decodeUnknownSync(Schema.DateTimeUtc)
-
-/** Only addresses a second device could actually dial, and only private ones. */
-const localAddresses = () => {
-  const found: Array<SharingAddress> = []
-
-  for (const [interfaceName, entries] of Object.entries(networkInterfaces())) {
-    for (const entry of entries ?? []) {
-      if (entry.family !== "IPv4") continue
-      if (entry.internal) continue
-      if (!isPrivateNetworkAddress(entry.address)) continue
-      found.push(new SharingAddress({ interfaceName, address: entry.address }))
-    }
-  }
-
-  return found
-}
 
 export type SharingServiceShape = {
   readonly status: Effect.Effect<SharingStatus, SharingFailed>
@@ -81,7 +63,7 @@ const makeService = Effect.gen(function* () {
       listening: runningPort !== null,
       port: runningPort ?? stored.port,
       libraryName: deviceName(),
-      addresses: runningPort === null ? [] : localAddresses(),
+      addresses: runningPort === null ? [] : localSharingAddresses(),
       deviceCount,
       reason
     })
@@ -121,7 +103,7 @@ const makeService = Effect.gen(function* () {
       })
     }
 
-    const addresses = localAddresses()
+    const addresses = localSharingAddresses()
     const first = addresses[0]
     if (first === undefined) {
       return yield* new SharingRejected({

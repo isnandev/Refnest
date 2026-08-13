@@ -106,7 +106,9 @@ export const registerReferenceTools = (
       folderId,
       title,
       description,
+      sourceUrl,
       favorite,
+      rating,
       tags,
       colors
     }) =>
@@ -120,7 +122,9 @@ export const registerReferenceTools = (
               : { folderId: folderId === null ? null : FolderId.make(folderId) }),
             ...(title === undefined ? {} : { title }),
             ...(description === undefined ? {} : { description }),
+            ...(sourceUrl === undefined ? {} : { sourceUrl }),
             ...(favorite === undefined ? {} : { favorite }),
+            ...(rating === undefined ? {} : { rating }),
             ...(tags === undefined ? {} : { tags }),
             ...(colors === undefined ? {} : { colors })
           })

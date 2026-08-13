@@ -3,6 +3,7 @@ import {
   FOLDER_NAME_MAX_LENGTH,
   REFERENCE_DESCRIPTION_MAX_LENGTH,
   REFERENCE_MIME_TYPE_MAX_LENGTH,
+  REFERENCE_RATING_MAX,
   REFERENCE_SOURCE_URL_MAX_LENGTH,
   REFERENCE_TAG_MAX_LENGTH,
   REFERENCE_TITLE_MAX_LENGTH,
@@ -228,6 +229,7 @@ export const ReferenceObjectSchema = z.object({
   durationSeconds: z.number().min(0).nullable(),
   fileSizeBytes: z.number().int().min(0),
   favorite: z.boolean(),
+  rating: z.number().int().min(0).max(REFERENCE_RATING_MAX),
   status: z.enum(["active", "trash"]),
   tags: z.array(ReferenceTag).max(64),
   colors: z.array(HexColor).max(16),
@@ -264,7 +266,9 @@ export const UpdateReferenceInputSchema = z.object({
   folderId: Id.nullable().optional(),
   title: ReferenceTitle.optional(),
   description: ReferenceDescription.optional(),
+  sourceUrl: HttpUrl.optional(),
   favorite: z.boolean().optional(),
+  rating: z.number().int().min(0).max(REFERENCE_RATING_MAX).optional(),
   tags: z.array(ReferenceTag).max(64).optional(),
   colors: z.array(HexColor).max(16).optional()
 }).strict().refine(
@@ -272,7 +276,9 @@ export const UpdateReferenceInputSchema = z.object({
     input.folderId !== undefined ||
     input.title !== undefined ||
     input.description !== undefined ||
+    input.sourceUrl !== undefined ||
     input.favorite !== undefined ||
+    input.rating !== undefined ||
     input.tags !== undefined ||
     input.colors !== undefined,
   "at least one reference change is required"
