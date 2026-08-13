@@ -5,10 +5,11 @@ import {
   type ReferenceKind,
   type ReferenceSource
 } from "@refnest/contracts"
-import { Buffer } from "node:buffer"
 import { Context, Effect, Layer, Schema } from "effect"
+import { ImageCodec } from "../converter/image-codec"
 import { localSourceFileName } from "../references/local-source-url"
 import { AiProviderPolicy } from "./ai-provider-policy"
+import { prepareAiImage } from "./ai-image"
 import {
   MAX_METADATA_COLORS,
   MAX_METADATA_TAGS,
@@ -28,6 +29,8 @@ export type MetadataFolderOption = {
 export type MetadataRequest = {
   readonly currentTitle: string
   readonly currentDescription: string
+  readonly currentTags: ReadonlyArray<string>
+  readonly currentColors: ReadonlyArray<string>
   readonly sourceUrl: string
   readonly source: ReferenceSource
   readonly kind: ReferenceKind
@@ -45,52 +48,11 @@ const ChatCompletionResponse = Schema.Struct({
   ).pipe(Schema.minItems(1))
 })
 
-/** What OpenAI-compatible vision endpoints agree on accepting inline. */
-const VISION_MIME_TYPES: ReadonlySet<string> = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif"
-])
-
-const MAX_INLINE_IMAGE_BYTES = 5 * 1_024 * 1_024
-
 const requestFailure = (reason: string) => new AiRequestFailed({ reason })
 
 const discardBody = (response: Response) =>
   Effect.promise(async () => {
     await response.body?.cancel().catch(() => undefined)
-  })
-
-const baseMimeType = (value: string) =>
-  value.split(";", 1)[0]?.trim().toLocaleLowerCase() ?? ""
-
-const readImageDataUrl = (path: string | null, declaredMimeType: string | null) =>
-  Effect.tryPromise({
-    try: async () => {
-      if (path === null || path.length === 0) return null
-      const file = Bun.file(path)
-      const mimeType = baseMimeType(declaredMimeType ?? file.type)
-      if (!VISION_MIME_TYPES.has(mimeType)) return null
-      if (file.size <= 0 || file.size > MAX_INLINE_IMAGE_BYTES) return null
-      if (!(await file.exists())) return null
-      const bytes = await file.arrayBuffer()
-      return `data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}`
-    },
-    catch: () => requestFailure("The reference image could not be prepared for AI.")
-  })
-
-/**
- * The downscaled preview exists for exactly this. References captured before
- * it, or imports whose bytes were kept as they were, have no preview on disk,
- * so the stored asset is attached instead: sending no image at all is what
- * makes a model answer with an apology rather than metadata.
- */
-const readInlineImage = (request: MetadataRequest) =>
-  Effect.gen(function* () {
-    const preview = yield* readImageDataUrl(request.previewPath, null)
-    if (preview !== null) return preview
-    return yield* readImageDataUrl(request.assetPath, request.mimeType)
   })
 
 /**
@@ -127,6 +89,7 @@ export class OpenAiCompatibleClient extends Context.Tag("OpenAiCompatibleClient"
 
 const makeOpenAiCompatibleClient = Effect.gen(function* () {
   const providerPolicy = yield* AiProviderPolicy
+  const imageCodec = yield* ImageCodec
 
   const generateMetadata = Effect.fn("OpenAiCompatibleClient.generateMetadata")(
     function* (settings: AiProviderSettings, request: MetadataRequest) {
@@ -146,7 +109,10 @@ const makeOpenAiCompatibleClient = Effect.gen(function* () {
           )
         )
 
-      const image = yield* readInlineImage(request)
+      const preparedImage = yield* prepareAiImage(request).pipe(
+        Effect.provideService(ImageCodec, imageCodec)
+      )
+      const image = preparedImage?.dataUrl ?? null
       const folderOptions = request.folders.map((folder) => ({
         id: folder.id,
         name: folder.name
@@ -155,6 +121,8 @@ const makeOpenAiCompatibleClient = Effect.gen(function* () {
         task: "Describe and organize this saved design inspiration.",
         currentTitle: request.currentTitle,
         currentDescription: request.currentDescription,
+        currentTags: request.currentTags,
+        currentColors: request.currentColors,
         ...describeSource(request),
         source: request.source,
         kind: request.kind,
@@ -247,6 +215,11 @@ const makeOpenAiCompatibleClient = Effect.gen(function* () {
 
       return yield* readMetadataResponse(content, {
         currentTitle: request.currentTitle,
+        currentDescription: request.currentDescription,
+        currentTags: request.currentTags,
+        currentColors: request.currentColors,
+        localColors: preparedImage?.colors ?? [],
+        imageAttached: image !== null,
         folderIds: new Set(folderOptions.map((folder) => folder.id))
       })
     }

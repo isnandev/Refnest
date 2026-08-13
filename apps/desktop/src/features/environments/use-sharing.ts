@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react"
 import { LocalApiClient } from "@/lib/api/client"
 import { toApiFailure } from "@/lib/api/errors"
 import { appRuntime } from "@/lib/runtime"
+import { pairingInviteRemainingMillis } from "./pairing-invite-time"
 
 const readStatus = Effect.gen(function* () {
   const api = yield* LocalApiClient
@@ -77,7 +78,7 @@ export const useSharing = () => {
   useEffect(() => {
     if (invite === null) return
 
-    const remaining = Date.parse(invite.expiresAt.toString()) - Date.now()
+    const remaining = pairingInviteRemainingMillis(invite)
     if (remaining <= 0) {
       setInvite(null)
       return

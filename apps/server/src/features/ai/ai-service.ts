@@ -61,6 +61,8 @@ const makeAiService = Effect.gen(function* () {
       {
         currentTitle: reference.title,
         currentDescription: reference.description,
+        currentTags: reference.tags,
+        currentColors: reference.colors,
         sourceUrl: reference.sourceUrl,
         source: reference.source,
         kind: reference.kind,

@@ -5,7 +5,7 @@ import {
   type Workspace
 } from "@refnest/contracts"
 import { PanelRightClose, PanelRightOpen } from "lucide-react"
-import { useState } from "react"
+import { useCallback, useState, type CSSProperties } from "react"
 
 import { Button } from "@/components/ui/button"
 import { AppCommandMenu } from "@/features/commands/app-command-menu"
@@ -85,11 +85,27 @@ export function ReferenceLibrary({
     settingsReady,
     onSidebarPreferencesChange
   )
+  const onInspectorPreferencesChange = useCallback(
+    ({ width }: SidebarPreferences) =>
+      onViewChange({ inspectorWidth: Math.round(width) }),
+    [onViewChange]
+  )
+  const inspector = useSidebar(
+    false,
+    {
+      width: view.inspectorWidth,
+      collapsed: !view.showInspector
+    },
+    settingsReady,
+    onInspectorPreferencesChange,
+    "right"
+  )
   const {
     activeSelection,
     activeItem,
     viewerItem,
     viewerIndex,
+    viewerVideo,
     selection,
     selectedItems,
     searchQuery,
@@ -176,7 +192,8 @@ export function ReferenceLibrary({
     <div
       className={cn(
         "h-screen overflow-hidden bg-stage text-foreground",
-        sidebar.dragging && "cursor-col-resize select-none"
+        (sidebar.dragging || inspector.dragging) &&
+          "cursor-col-resize select-none"
       )}
     >
       <a
@@ -320,11 +337,33 @@ export function ReferenceLibrary({
               </p>
             </main>
 
+            <SidebarResizeHandle
+              collapsed={!view.showInspector}
+              dragging={inspector.dragging}
+              width={inspector.width}
+              label="Resize reference inspector"
+              onPointerDown={inspector.startResize}
+              onPointerMove={inspector.resize}
+              onPointerUp={inspector.endResize}
+              onPointerCancel={inspector.endResize}
+              onKeyDown={inspector.onDividerKeyDown}
+              className={cn(
+                "hidden",
+                view.showInspector && "min-[900px]:block"
+              )}
+            />
+
             <div
               className={cn(
                 "library-inspector-column h-full shrink-0 overflow-hidden",
+                inspector.dragging && "is-dragging",
                 !view.showInspector && "is-collapsed"
               )}
+              style={
+                {
+                  "--inspector-width": `${inspector.width}px`
+                } as CSSProperties
+              }
               aria-hidden={!view.showInspector}
               inert={!view.showInspector}
             >
@@ -387,6 +426,8 @@ export function ReferenceLibrary({
           viewerItem === null ? undefined : assets.urls.get(viewerItem.id)
         }
         imageFailed={viewerItem !== null && assets.failed.has(viewerItem.id)}
+        videoUrl={viewerVideo.url}
+        videoFailed={viewerVideo.failed}
         index={viewerIndex}
         total={visibleItems.length}
         onOpenChange={(open) => {

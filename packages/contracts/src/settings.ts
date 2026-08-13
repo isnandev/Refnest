@@ -77,7 +77,8 @@ export class LibraryViewPreferences extends Schema.Class<LibraryViewPreferences>
   showAnnotation: Schema.Boolean,
   showSubfolderContents: Schema.Boolean,
   showSidebar: Schema.Boolean,
-  showInspector: Schema.Boolean
+  showInspector: Schema.Boolean,
+  inspectorWidth: SidebarWidth
 }) {}
 
 export const LibraryViewPreferencesPatch = Schema.partial(
@@ -99,7 +100,8 @@ export const DEFAULT_LIBRARY_VIEW_PREFERENCES = new LibraryViewPreferences({
   showAnnotation: false,
   showSubfolderContents: true,
   showSidebar: true,
-  showInspector: false
+  showInspector: false,
+  inspectorWidth: 288
 })
 
 /** Field by field, so an explicit `undefined` reads as "unchanged", not "clear". */
@@ -122,7 +124,8 @@ export const mergeLibraryViewPreferences = (
     showSubfolderContents:
       patch.showSubfolderContents ?? current.showSubfolderContents,
     showSidebar: patch.showSidebar ?? current.showSidebar,
-    showInspector: patch.showInspector ?? current.showInspector
+    showInspector: patch.showInspector ?? current.showInspector,
+    inspectorWidth: patch.inspectorWidth ?? current.inspectorWidth
   })
 
 /**

@@ -139,7 +139,7 @@ export const applicationServicesLive = (
     )
   )
   const openAiClient = OpenAiCompatibleClientLive.pipe(
-    Layer.provide(aiProviderPolicy)
+    Layer.provide(Layer.merge(aiProviderPolicy, imageCodec))
   )
   const ai = AiServiceLive.pipe(
     Layer.provide(

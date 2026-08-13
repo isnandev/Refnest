@@ -25,7 +25,11 @@ import { useDebouncedValue } from "./use-debounced-value"
 import { useLibraryData } from "./use-library-data"
 import { useLibraryShortcuts } from "./use-library-shortcuts"
 import { useQuickSave } from "./use-quick-save"
-import { useReferenceAssets } from "./use-reference-assets"
+import {
+  referenceVideoPath,
+  useReferenceAsset,
+  useReferenceAssets
+} from "./use-reference-assets"
 import { useReferenceDrop } from "./use-reference-drop"
 import { useReferenceExport } from "./use-reference-export"
 import { useReferenceImport } from "./use-reference-import"
@@ -187,6 +191,7 @@ export const useReferenceLibrary = ({
       : activeItem?.id === viewerId
         ? activeItem
         : (visibleItems[viewerIndex] ?? null)
+  const viewerVideo = useReferenceAsset(referenceVideoPath(viewerItem))
 
   useLibraryShortcuts({
     enabled: viewerId === null,
@@ -382,6 +387,7 @@ export const useReferenceLibrary = ({
     activeItem,
     viewerItem,
     viewerIndex,
+    viewerVideo,
     selection,
     selectedItems,
     searchQuery,

@@ -76,6 +76,19 @@ following product-level direction:
   database and therefore inherits only that file's operating-system permissions;
   this is a known at-rest limitation until a small, cross-platform credential-store
   integration is introduced.
+- **MCP credentials are revealed only on request.** The loopback MCP endpoint is
+  always authenticated and available while RefNest is open, but its URL and
+  bearer token stay inside the Rust shell until the user opens MCP access in
+  Settings. The token is masked by default, copy feedback is explicit, and the
+  page warns that the session credential grants control of the local library
+  and rotates on restart.
+- **AI enrichment must inspect an image before it may describe one.** The
+  sidecar verifies and bounds the stored preview or asset, attaches it inline,
+  and derives the dominant colour swatches from the decoded pixels so provider
+  quirks cannot make colours randomly disappear. An image that cannot be
+  prepared, or a vision model that replies that it cannot see the attachment,
+  fails enrichment without replacing good metadata with an apology. Omitted
+  collections preserve the reference's existing tags and colours.
 - **Desktop state resumes from Bun SQLite.** Theme, sidebar width/collapse state,
   selected workspace, active page, and the native window's normal bounds/maximized
   state share one typed settings document. The frameless window starts hidden, applies
@@ -95,10 +108,12 @@ following product-level direction:
   typing drives the library query so the grid behind the palette narrows to the
   results the palette lists. One palette carries references, folders, creation,
   settings, and workspace switching, so there is a single place to look for anything.
-- **A click opens the picture, not a form.** Selecting a reference in the grid
+- **A click opens the media, not a form.** Selecting a reference in the grid
   raises a full-viewport viewer on a near-black canvas — the `canvas` variant of
   the shared dialog, so the treatment stays token-backed — with the arrows
-  walking the order the grid is showing. The inspector is no longer a
+  walking the order the grid is showing. Videos use the original asset in a
+  native player, start muted so autoplay is reliable, and retain controls for
+  pause and unmute. The inspector is no longer a
   consequence of clicking: it starts collapsed and opens only from the titlebar
   control or the viewer's `Details` button. A vault is for looking at imagery,
   and the metadata is a question the user asks rather than one the app answers
@@ -230,7 +245,9 @@ following product-level direction:
 
 Two hash-addressable views. A `272px` full-height sidebar carries the workspace selector,
 command-menu trigger, and anchored navigation. It can be resized from `232px` to `360px`,
-collapses to a `56px` icon rail, and defaults to the rail below `900px`.
+collapses to a `56px` icon rail, and defaults to the rail below `900px`. The right inspector
+uses the same persisted `232px`–`360px` resize behavior from its inside divider, defaults to
+`288px`, and becomes a width-capped overlay below `900px`.
 
 The main surface has a fixed, borderless `52px` desktop titlebar outside the content scroll
 viewport, so the scrollbar begins below the app navigation instead of running

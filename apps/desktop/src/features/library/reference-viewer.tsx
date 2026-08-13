@@ -15,16 +15,19 @@ import {
   formatReferenceSource
 } from "./library-format"
 import { ReferencePreview } from "./reference-preview"
+import { ReferenceVideoPlayer } from "./reference-video-player"
 
 /**
- * Opening a reference shows the image, not a form. Metadata stays one click
- * away in the inspector so the picture keeps the whole viewport, and the
+ * Opening a reference shows its media, not a form. Metadata stays one click
+ * away in the inspector so the reference keeps the whole viewport, and the
  * arrows walk the same order the grid is showing.
  */
 export function ReferenceViewer({
   item,
   imageUrl,
   imageFailed,
+  videoUrl,
+  videoFailed,
   index,
   total,
   onOpenChange,
@@ -35,6 +38,8 @@ export function ReferenceViewer({
   readonly item: InspirationReference | null
   readonly imageUrl: string | undefined
   readonly imageFailed: boolean
+  readonly videoUrl: string | undefined
+  readonly videoFailed: boolean
   readonly index: number
   readonly total: number
   readonly onOpenChange: (open: boolean) => void
@@ -106,14 +111,23 @@ export function ReferenceViewer({
         </header>
 
         <div className="relative flex min-h-0 flex-1 items-center justify-center px-14 py-4">
-          <ReferencePreview
-            reference={item}
-            url={imageUrl}
-            failed={imageFailed}
-            alt={item.title}
-            eager
-            className="size-full bg-transparent object-contain object-center text-on-inverse-muted"
-          />
+          {item.kind === "video" ? (
+            <ReferenceVideoPlayer
+              url={videoUrl}
+              posterUrl={imageFailed ? undefined : imageUrl}
+              title={item.title}
+              failed={videoFailed}
+            />
+          ) : (
+            <ReferencePreview
+              reference={item}
+              url={imageUrl}
+              failed={imageFailed}
+              alt={item.title}
+              eager
+              className="size-full bg-transparent object-contain object-center text-on-inverse-muted"
+            />
+          )}
 
           {hasPrevious && (
             <Button

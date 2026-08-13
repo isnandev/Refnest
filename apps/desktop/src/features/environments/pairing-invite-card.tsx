@@ -3,6 +3,8 @@ import { Copy, X } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { useCopyText } from "@/lib/use-copy-text"
+import { pairingInviteRemainingMillis } from "./pairing-invite-time"
 
 const formatCountdown = (millis: number) => {
   const total = Math.max(0, Math.round(millis / 1000))
@@ -23,27 +25,18 @@ export function PairingInviteCard({
   readonly invite: PairingInvite
   readonly onCancel: () => void
 }) {
-  const expiresAt = Date.parse(invite.expiresAt.toString())
-  const [remaining, setRemaining] = useState(() => expiresAt - Date.now())
-  const [copied, setCopied] = useState(false)
+  const [remaining, setRemaining] = useState(() =>
+    pairingInviteRemainingMillis(invite)
+  )
+  const clipboard = useCopyText()
 
   useEffect(() => {
     const timer = window.setInterval(
-      () => setRemaining(expiresAt - Date.now()),
+      () => setRemaining(pairingInviteRemainingMillis(invite)),
       1000
     )
     return () => window.clearInterval(timer)
-  }, [expiresAt])
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(invite.connectString)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      setCopied(false)
-    }
-  }
+  }, [invite])
 
   return (
     <div className="mt-4 rounded-sm border bg-surface-muted p-4">
@@ -67,9 +60,14 @@ export function PairingInviteCard({
       </p>
 
       <div className="mt-4 flex gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={() => void copy()}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void clipboard.copy(invite.connectString)}
+        >
           <Copy aria-hidden="true" />
-          {copied ? "Copied" : "Copy"}
+          {clipboard.copiedValue === invite.connectString ? "Copied" : "Copy"}
         </Button>
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           <X aria-hidden="true" />

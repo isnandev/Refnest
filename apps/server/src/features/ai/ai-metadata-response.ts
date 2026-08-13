@@ -30,6 +30,11 @@ export type MetadataResponse = typeof MetadataResponse.Type
 /** What a reply is measured against: the title it may replace, the folders it may pick. */
 export type MetadataContext = {
   readonly currentTitle: string
+  readonly currentDescription: string
+  readonly currentTags: ReadonlyArray<string>
+  readonly currentColors: ReadonlyArray<string>
+  readonly localColors: ReadonlyArray<string>
+  readonly imageAttached: boolean
   readonly folderIds: ReadonlySet<string>
 }
 
@@ -118,6 +123,25 @@ const asHexColor = (value: unknown): string | null => {
   return full === null ? null : `#${(full[1] ?? "").toUpperCase()}`
 }
 
+const normalizedColors = (values: ReadonlyArray<unknown>) =>
+  normalizeReferenceColors(
+    values.map(asHexColor).filter((color): color is string => color !== null)
+  ).slice(0, MAX_METADATA_COLORS)
+
+const IMAGE_UNAVAILABLE_PATTERNS: ReadonlyArray<RegExp> = [
+  /\b(?:image|attachment|visual)\b[^.]{0,100}\b(?:not available|unavailable|not accessible|cannot be accessed|can't be accessed)\b/i,
+  /\b(?:cannot|can't|unable to)\b[^.]{0,80}\b(?:view|see|access|inspect|analy[sz]e)\b[^.]{0,40}\b(?:image|attachment|visual)\b/i
+]
+
+const claimsImageIsUnavailable = (payload: unknown) => {
+  const raw = asRecord(payload)
+  const reply = `${asText(raw["title"], REFERENCE_TITLE_MAX_LENGTH)} ${asText(
+    raw["description"],
+    REFERENCE_DESCRIPTION_MAX_LENGTH
+  )}`
+  return IMAGE_UNAVAILABLE_PATTERNS.some((pattern) => pattern.test(reply))
+}
+
 /**
  * The reply is advisory, not authoritative: a title that ran long, a shorthand
  * colour, or a thirteenth tag is worth trimming rather than rejecting. Only a
@@ -127,21 +151,33 @@ const asHexColor = (value: unknown): string | null => {
 const normalizeMetadata = (payload: unknown, context: MetadataContext) => {
   const raw = asRecord(payload)
   const title = asText(raw["title"], REFERENCE_TITLE_MAX_LENGTH)
+  const description = asText(
+    raw["description"],
+    REFERENCE_DESCRIPTION_MAX_LENGTH
+  )
   const suggestedFolderId = asText(raw["suggestedFolderId"], 256)
+  const tags = normalizeReferenceTags(
+    asList(raw["tags"])
+      .map((tag) => asText(tag, REFERENCE_TAG_MAX_LENGTH))
+      .filter((tag) => tag.length > 0)
+  ).slice(0, MAX_METADATA_TAGS)
+  const providerColors = normalizedColors(asList(raw["colors"]))
+  const localColors = normalizedColors(context.localColors)
 
   return {
     title: title.length > 0 ? title : context.currentTitle,
-    description: asText(raw["description"], REFERENCE_DESCRIPTION_MAX_LENGTH),
-    tags: normalizeReferenceTags(
-      asList(raw["tags"])
-        .map((tag) => asText(tag, REFERENCE_TAG_MAX_LENGTH))
-        .filter((tag) => tag.length > 0)
-    ).slice(0, MAX_METADATA_TAGS),
-    colors: normalizeReferenceColors(
-      asList(raw["colors"])
-        .map(asHexColor)
-        .filter((color): color is string => color !== null)
-    ).slice(0, MAX_METADATA_COLORS),
+    description:
+      description.length > 0 ? description : context.currentDescription,
+    tags:
+      tags.length > 0
+        ? tags
+        : normalizeReferenceTags(context.currentTags).slice(0, MAX_METADATA_TAGS),
+    colors:
+      localColors.length > 0
+        ? localColors
+        : providerColors.length > 0
+          ? providerColors
+          : normalizedColors(context.currentColors),
     suggestedFolderId: context.folderIds.has(suggestedFolderId)
       ? suggestedFolderId
       : null
@@ -162,6 +198,12 @@ export const readMetadataResponse = (
     if (payload === null) {
       return yield* requestFailure(
         "The AI provider replied with text instead of the requested JSON metadata."
+      )
+    }
+
+    if (context.imageAttached && claimsImageIsUnavailable(payload)) {
+      return yield* requestFailure(
+        "The AI provider could not inspect the attached image. Check that the selected model supports vision and try again."
       )
     }
 

@@ -6,6 +6,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { AiProviderPolicyLive } from "../src/features/ai/ai-provider-policy"
 import type { AiProviderSettings } from "../src/features/ai/ai-settings-repository"
+import { ImageCodecLive } from "../src/features/converter/image-codec"
 import {
   type MetadataRequest,
   OpenAiCompatibleClient,
@@ -32,10 +33,12 @@ const metadataRequest = (
   currentDescription: "",
   sourceUrl: "https://example.com/product",
   source: "website",
-  kind: "web-capture",
+  kind: "pdf",
   assetPath: "",
   previewPath: null,
-  mimeType: "image/png",
+  mimeType: "application/pdf",
+  currentTags: ["Existing tag"],
+  currentColors: ["#112233"],
   folders: [],
   ...overrides
 })
@@ -57,7 +60,10 @@ const withTemporaryDirectory = async (run: (directory: string) => Promise<void>)
 
 const ClientTest = OpenAiCompatibleClientLive.pipe(
   Layer.provide(
-    AiProviderPolicyLive.pipe(Layer.provide(OutboundUrlPolicyLive))
+    Layer.merge(
+      AiProviderPolicyLive.pipe(Layer.provide(OutboundUrlPolicyLive)),
+      ImageCodecLive
+    )
   )
 )
 
@@ -235,6 +241,212 @@ describe("OpenAI-compatible metadata client", () => {
         await server.stop(true)
       }
     })
+  })
+
+  it("downscales an oversized visible image and derives its palette locally", async () => {
+    await withTemporaryDirectory(async (directory) => {
+      const assetPath = join(directory, "oversized.png")
+      await Bun.write(
+        assetPath,
+        Buffer.concat([
+          ONE_PIXEL_PNG,
+          Buffer.alloc(5 * 1_024 * 1_024 + 1 - ONE_PIXEL_PNG.byteLength)
+        ])
+      )
+
+      let observedImageUrl: string | null = null
+      const server = Bun.serve({
+        hostname: "127.0.0.1",
+        port: 0,
+        async fetch(request) {
+          const body = (await request.json()) as {
+            readonly messages: ReadonlyArray<{
+              readonly role: string
+              readonly content:
+                | string
+                | ReadonlyArray<{
+                    readonly type: string
+                    readonly image_url?: { readonly url: string }
+                  }>
+            }>
+          }
+          const user = body.messages.find((message) => message.role === "user")
+          if (user !== undefined && Array.isArray(user.content)) {
+            observedImageUrl =
+              user.content.find((part) => part.type === "image_url")?.image_url
+                ?.url ?? null
+          }
+
+          return Response.json({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    title: "Visible image",
+                    description: "A visible image.",
+                    tags: ["Image"],
+                    colors: [],
+                    suggestedFolderId: null
+                  })
+                }
+              }
+            ]
+          })
+        }
+      })
+
+      try {
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const client = yield* OpenAiCompatibleClient
+            const metadata = yield* client.generateMetadata(
+              providerSettings(`http://127.0.0.1:${server.port}/v1`),
+              metadataRequest({
+                kind: "image",
+                mimeType: "image/png",
+                assetPath,
+                previewPath: null
+              })
+            )
+
+            expect(observedImageUrl).toStartWith("data:image/jpeg;base64,")
+            expect(metadata.colors.length).toBeGreaterThan(0)
+          }).pipe(Effect.provide(ClientTest))
+        )
+      } finally {
+        await server.stop(true)
+      }
+    })
+  })
+
+  it("rejects a provider reply that claims the attached image is unavailable", async () => {
+    await withTemporaryDirectory(async (directory) => {
+      const assetPath = join(directory, "visible.png")
+      await Bun.write(assetPath, ONE_PIXEL_PNG)
+      const server = Bun.serve({
+        hostname: "127.0.0.1",
+        port: 0,
+        fetch() {
+          return Response.json({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    title: "Unspecified design inspiration (image)",
+                    description:
+                      "The attached image is not available for visual review in this interface, so no concrete style can be assessed.",
+                    suggestedFolderId: null
+                  })
+                }
+              }
+            ]
+          })
+        }
+      })
+
+      try {
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            const client = yield* OpenAiCompatibleClient
+            const result = yield* client
+              .generateMetadata(
+                providerSettings(`http://127.0.0.1:${server.port}/v1`),
+                metadataRequest({
+                  kind: "image",
+                  mimeType: "image/png",
+                  assetPath,
+                  previewPath: null
+                })
+              )
+              .pipe(Effect.either)
+
+            expect(result._tag).toBe("Left")
+            if (result._tag === "Left") {
+              expect(result.left.reason).toContain("could not inspect")
+            }
+          }).pipe(Effect.provide(ClientTest))
+        )
+      } finally {
+        await server.stop(true)
+      }
+    })
+  })
+
+  it("preserves existing collections when the provider omits them", async () => {
+    const server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch() {
+        return Response.json({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  title: "Text-only metadata",
+                  description: "Useful supplied context.",
+                  suggestedFolderId: null
+                })
+              }
+            }
+          ]
+        })
+      }
+    })
+
+    try {
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const client = yield* OpenAiCompatibleClient
+          const metadata = yield* client.generateMetadata(
+            providerSettings(`http://127.0.0.1:${server.port}/v1`),
+            metadataRequest({ kind: "pdf", mimeType: "application/pdf" })
+          )
+
+          expect(metadata.tags).toStrictEqual(["Existing tag"])
+          expect(metadata.colors).toStrictEqual(["#112233"])
+        }).pipe(Effect.provide(ClientTest))
+      )
+    } finally {
+      await server.stop(true)
+    }
+  })
+
+  it("does not call the provider when an image cannot be prepared", async () => {
+    let requests = 0
+    const server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch() {
+        requests += 1
+        return Response.json({})
+      }
+    })
+
+    try {
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const client = yield* OpenAiCompatibleClient
+          const result = yield* client
+            .generateMetadata(
+              providerSettings(`http://127.0.0.1:${server.port}/v1`),
+              metadataRequest({
+                kind: "image",
+                mimeType: "image/png",
+                assetPath: "missing-image.png"
+              })
+            )
+            .pipe(Effect.either)
+
+          expect(result._tag).toBe("Left")
+          if (result._tag === "Left") {
+            expect(result.left.reason).toContain("could not be prepared")
+          }
+          expect(requests).toBe(0)
+        }).pipe(Effect.provide(ClientTest))
+      )
+    } finally {
+      await server.stop(true)
+    }
   })
 
   it("recovers metadata from a reply the model wrapped in prose", async () => {

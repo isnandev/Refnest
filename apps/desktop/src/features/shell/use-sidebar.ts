@@ -19,6 +19,17 @@ export type SidebarPreferences = {
   readonly collapsed: boolean
 }
 
+export type SidebarSide = "left" | "right"
+
+/** A divider moves in the opposite direction when its panel sits on the right. */
+export const sidebarWidthFromDrag = (
+  startWidth: number,
+  startPointerX: number,
+  pointerX: number,
+  side: SidebarSide
+) =>
+  startWidth + (pointerX - startPointerX) * (side === "left" ? 1 : -1)
+
 const clampWidth = (width: number) =>
   Math.min(SIDEBAR.maxWidth, Math.max(SIDEBAR.minWidth, width))
 
@@ -34,7 +45,8 @@ export const useSidebar = (
   autoCollapse: boolean,
   persisted: SidebarPreferences,
   settingsReady: boolean,
-  onPreferencesChange: (preferences: SidebarPreferences) => void
+  onPreferencesChange: (preferences: SidebarPreferences) => void,
+  side: SidebarSide = "left"
 ) => {
   const [prefs, setPrefs] = useState<SidebarPreferences>(() =>
     normalizePreferences(persisted)
@@ -125,8 +137,11 @@ export const useSidebar = (
     const start = dragStart.current
     if (start === null) return
 
-    setWidth(start.width + (event.clientX - start.pointerX), false)
-  }, [setWidth])
+    setWidth(
+      sidebarWidthFromDrag(start.width, start.pointerX, event.clientX, side),
+      false
+    )
+  }, [setWidth, side])
 
   const endResize = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const start = dragStart.current
@@ -134,11 +149,14 @@ export const useSidebar = (
 
     dragStart.current = null
     setDragging(false)
-    setWidth(start.width + (event.clientX - start.pointerX), true)
+    setWidth(
+      sidebarWidthFromDrag(start.width, start.pointerX, event.clientX, side),
+      true
+    )
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
-  }, [setWidth])
+  }, [setWidth, side])
 
   const nudge = useCallback(
     (delta: number) => {
@@ -151,13 +169,13 @@ export const useSidebar = (
     (event: KeyboardEvent<HTMLDivElement>) => {
       if (event.key === "ArrowLeft") {
         event.preventDefault()
-        nudge(-16)
+        nudge(side === "left" ? -16 : 16)
       } else if (event.key === "ArrowRight") {
         event.preventDefault()
-        nudge(16)
+        nudge(side === "left" ? 16 : -16)
       }
     },
-    [nudge]
+    [nudge, side]
   )
 
   return {

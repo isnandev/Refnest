@@ -8,7 +8,10 @@ import {
 } from "@refnest/contracts"
 import { describe, expect, it } from "vitest"
 
-import { referenceImagePath } from "@/features/library/use-reference-assets"
+import {
+  referenceImagePath,
+  referenceVideoPath
+} from "@/features/library/use-reference-assets"
 
 describe("library view preferences", () => {
   it("merges one toggle without disturbing the rest of the document", () => {
@@ -20,6 +23,19 @@ describe("library view preferences", () => {
     expect(merged.layout).toBe("justified")
     expect(merged.columns).toBe(DEFAULT_LIBRARY_VIEW_PREFERENCES.columns)
     expect(merged.sort).toBe(DEFAULT_LIBRARY_VIEW_PREFERENCES.sort)
+    expect(merged.inspectorWidth).toBe(
+      DEFAULT_LIBRARY_VIEW_PREFERENCES.inspectorWidth
+    )
+  })
+
+  it("persists the inspector width beside its visibility", () => {
+    const merged = mergeLibraryViewPreferences(
+      DEFAULT_LIBRARY_VIEW_PREFERENCES,
+      { inspectorWidth: 344, showInspector: true }
+    )
+
+    expect(merged.inspectorWidth).toBe(344)
+    expect(merged.showInspector).toBe(true)
   })
 
   it("keeps the rest of the settings document when the view changes", () => {
@@ -55,6 +71,9 @@ describe("library view preferences", () => {
     expect(restored.libraryView.layout).toBe("grid")
     expect(restored.libraryView.columns).toBe(2)
     expect(restored.libraryView.thumbnailQuality).toBe("speed")
+    expect(restored.libraryView.inspectorWidth).toBe(
+      DEFAULT_LIBRARY_VIEW_PREFERENCES.inspectorWidth
+    )
   })
 })
 
@@ -78,5 +97,21 @@ describe("thumbnail quality", () => {
     }
 
     expect(referenceImagePath(video, "quality")).toBe("/preview")
+  })
+
+  it("loads an original video only when the viewer asks for it", () => {
+    expect(
+      referenceVideoPath({
+        assetUrl: "/asset",
+        kind: "video"
+      })
+    ).toBe("/asset")
+    expect(
+      referenceVideoPath({
+        assetUrl: "/asset",
+        kind: "image"
+      })
+    ).toBeNull()
+    expect(referenceVideoPath(null)).toBeNull()
   })
 })

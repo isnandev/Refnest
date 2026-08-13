@@ -74,7 +74,7 @@ export function InspectorPanel({
   return (
     <aside
       aria-label="Reference inspector"
-      className="inspector-panel flex h-full min-h-0 w-[288px] flex-col border-l bg-surface"
+      className="inspector-panel flex h-full min-h-0 w-full min-w-0 flex-col bg-surface"
     >
       <div className="inspector-scroll min-h-0 flex-1 overflow-y-auto p-4">
         <div className="flex items-start gap-2">

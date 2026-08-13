@@ -1,10 +1,25 @@
 //! The whole IPC surface: wait for the sidecar, then forward one request.
 
+use serde::Serialize;
 use tauri::State;
 
 use crate::endpoint::{ActiveEndpoint, LOCAL_ENVIRONMENT_ID};
 use crate::proxy::{ApiProxy, ApiRequest, ApiResponse};
 use crate::sidecar::Sidecar;
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpConnectionInfo {
+    url: String,
+    token: String,
+}
+
+fn mcp_connection(endpoint: crate::sidecar::Endpoint) -> McpConnectionInfo {
+    McpConnectionInfo {
+        url: format!("{}/mcp", endpoint.base_url.trim_end_matches('/')),
+        token: endpoint.token,
+    }
+}
 
 /// Goes to whichever library is active — this device's, or one on the network.
 #[tauri::command]
@@ -55,4 +70,28 @@ pub async fn activate_environment(
 #[tauri::command]
 pub fn sidecar_ready(sidecar: State<'_, Sidecar>) -> bool {
     sidecar.is_ready()
+}
+
+/// Reveals the ephemeral MCP credential only after the Settings UI explicitly
+/// requests it. Ordinary webview traffic continues through the opaque proxy.
+#[tauri::command]
+pub async fn mcp_connection_info(sidecar: State<'_, Sidecar>) -> Result<McpConnectionInfo, String> {
+    Ok(mcp_connection(sidecar.endpoint().await?))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::mcp_connection;
+    use crate::sidecar::Endpoint;
+
+    #[test]
+    fn builds_the_mcp_url_from_the_live_sidecar_endpoint() {
+        let connection = mcp_connection(Endpoint {
+            base_url: "http://127.0.0.1:4317".to_string(),
+            token: "local-secret".to_string(),
+        });
+
+        assert_eq!(connection.url, "http://127.0.0.1:4317/mcp");
+        assert_eq!(connection.token, "local-secret");
+    }
 }

@@ -99,6 +99,11 @@ sidecar. It uses the same required bearer token as the REST API and the same liv
 Effect service graph and SQLite owner, so desktop and MCP clients can operate at
 the same time. There is no unauthenticated MCP listener.
 
+In the desktop app, open **Settings → MCP access → Show connection** to reveal
+and copy the current Streamable HTTP URL and authorization header. These
+credentials are generated for the running app session and change after RefNest
+restarts.
+
 For an HTTP MCP client, start RefNest with an explicit loopback port and token so
 the client has stable connection settings:
 

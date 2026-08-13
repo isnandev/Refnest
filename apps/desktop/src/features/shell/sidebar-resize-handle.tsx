@@ -10,6 +10,7 @@ export function SidebarResizeHandle({
   collapsed = false,
   dragging,
   width,
+  label = "Resize sidebar",
   className,
   onPointerDown,
   onPointerMove,
@@ -20,6 +21,7 @@ export function SidebarResizeHandle({
   collapsed?: boolean
   dragging: boolean
   width: number
+  label?: string
   className?: string
   onPointerDown: PointerEventHandler<HTMLDivElement>
   onPointerMove: PointerEventHandler<HTMLDivElement>
@@ -40,7 +42,7 @@ export function SidebarResizeHandle({
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize sidebar"
+      aria-label={label}
       aria-valuemin={SIDEBAR.minWidth}
       aria-valuemax={SIDEBAR.maxWidth}
       aria-valuenow={width}

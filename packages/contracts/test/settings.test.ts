@@ -59,6 +59,19 @@ describe("desktop settings contracts", () => {
       expect(opacity._tag).toBe("Left")
       expect(window._tag).toBe("Left")
     }))
+
+  it.effect("accepts only bounded inspector widths", () =>
+    Effect.gen(function* () {
+      const accepted = yield* Schema.decodeUnknown(UpdateDesktopSettings)({
+        libraryView: { inspectorWidth: 344 }
+      })
+      const rejected = yield* Schema.decodeUnknown(UpdateDesktopSettings)({
+        libraryView: { inspectorWidth: 700 }
+      }).pipe(Effect.either)
+
+      expect(accepted.libraryView?.inspectorWidth).toBe(344)
+      expect(rejected._tag).toBe("Left")
+    }))
 })
 
 describe("workspace selection is per environment", () => {

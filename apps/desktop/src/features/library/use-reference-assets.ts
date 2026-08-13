@@ -37,6 +37,11 @@ export const referenceImagePath = (
     : (reference.previewUrl ?? original)
 }
 
+/** The viewer loads original video bytes only while that video is open. */
+export const referenceVideoPath = (
+  reference: Pick<InspirationReference, "assetUrl" | "kind"> | null
+) => (reference?.kind === "video" ? reference.assetUrl : null)
+
 const loadAsset = (path: string) => {
   if (!path.startsWith("/") || path.startsWith("//")) {
     return Effect.fail(
@@ -57,6 +62,60 @@ const loadAsset = (path: string) => {
     ),
     Effect.mapError(toApiFailure)
   )
+}
+
+type ReferenceAssetUrlState = {
+  readonly path: string | null
+  readonly url: string | undefined
+  readonly failed: boolean
+}
+
+const EMPTY_ASSET_URL_STATE: ReferenceAssetUrlState = {
+  path: null,
+  url: undefined,
+  failed: false
+}
+
+/** Loads one authenticated asset on demand and releases its blob URL afterward. */
+export const useReferenceAsset = (path: string | null) => {
+  const [state, setState] = useState<ReferenceAssetUrlState>(
+    EMPTY_ASSET_URL_STATE
+  )
+
+  useEffect(() => {
+    let disposed = false
+    let objectUrl: string | undefined
+
+    setState({ path, url: undefined, failed: false })
+    if (path === null) return
+
+    void appRuntime
+      .runPromise(Effect.either(loadAsset(path)))
+      .then((result) => {
+        if (disposed) return
+        if (result._tag === "Left") {
+          setState({ path, url: undefined, failed: true })
+          return
+        }
+
+        objectUrl = URL.createObjectURL(
+          new Blob([result.right.bytes], { type: result.right.contentType })
+        )
+        setState({ path, url: objectUrl, failed: false })
+      })
+      .catch(() => {
+        if (!disposed) setState({ path, url: undefined, failed: true })
+      })
+
+    return () => {
+      disposed = true
+      if (objectUrl !== undefined) URL.revokeObjectURL(objectUrl)
+    }
+  }, [path])
+
+  return state.path === path
+    ? { url: state.url, failed: state.failed }
+    : { url: undefined, failed: false }
 }
 
 /** Loads authenticated image bytes through the Rust proxy and owns their blob URLs. */

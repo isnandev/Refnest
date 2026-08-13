@@ -27,6 +27,7 @@ import type { useSharing } from "@/features/environments/use-sharing"
 import type { Theme } from "@/features/theme/use-theme"
 import { TitleBar } from "@/features/window/title-bar"
 import { AiSettingsSection } from "./ai-settings-section"
+import { McpSettingsSection } from "./mcp-settings-section"
 import { SettingRow, SettingToggle } from "./setting-row"
 import type { AppSettings } from "./use-app-settings"
 import type { AiSettingsState } from "./use-ai-settings"
@@ -41,7 +42,7 @@ const THEME_OPTIONS: readonly {
   { value: "dark", label: "Dark", icon: Moon }
 ]
 
-/** The one destination for app-wide preferences: appearance and AI provider. */
+/** The one destination for app-wide preferences and local integrations. */
 export function SettingsPage({
   resolvedTheme,
   themePreference,
@@ -113,8 +114,8 @@ export function SettingsPage({
             </div>
             <h1 className="mt-5 text-h1">Settings</h1>
             <p className="mt-1 max-w-[620px] text-body-md text-muted-foreground">
-              Appearance changes save themselves to Bun SQLite on this device.
-              The AI provider saves when you submit it.
+              Manage this device's appearance, local integrations, and AI
+              provider.
             </p>
             {saveError !== null ? (
               <p
@@ -233,6 +234,17 @@ export function SettingsPage({
                 />
               </SettingRow>
             </Card>
+          </section>
+
+          <section className="pt-10" aria-labelledby="mcp-title">
+            <h2 id="mcp-title" className="text-h2">
+              MCP access
+            </h2>
+            <p className="mt-1 max-w-[620px] text-body-sm text-muted-foreground">
+              Connect an AI assistant directly to RefNest through its local,
+              authenticated MCP server.
+            </p>
+            <McpSettingsSection />
           </section>
 
           <section className="pt-10" aria-labelledby="ai-provider-title">

@@ -391,8 +391,12 @@
 }
 
 .library-inspector-column {
-  width: 288px;
+  width: var(--inspector-width, 288px);
   transition: width 220ms ease-out;
+}
+
+.library-inspector-column.is-dragging {
+  transition: none;
 }
 
 .library-inspector-column > .inspector-panel {
@@ -432,12 +436,12 @@
     inset-block: 0;
     inset-inline-end: 0;
     z-index: 30;
-    width: min(288px, calc(100vw - 56px));
+    width: min(var(--inspector-width, 288px), calc(100vw - 56px));
     box-shadow: 0 12px 32px rgb(0 0 0 / 35%);
   }
 
   .library-inspector-column.is-collapsed {
-    width: min(288px, calc(100vw - 56px));
+    width: min(var(--inspector-width, 288px), calc(100vw - 56px));
     visibility: hidden;
   }
 }
