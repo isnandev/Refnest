@@ -218,9 +218,17 @@ with page metadata as a fallback when the source exposes a direct image or video
 Capture runs as a persisted background job and never crawls links from the page.
 
 Local image, video, and PDF imports use `POST /references/import`. The desktop
-picker supplies one user-selected absolute path per request; the sidecar verifies
-the regular file, signature, size, and destination before copying it into the
-selected workspace folder. The original file is left unchanged.
+picker — or a drop onto the window, which Tauri reports as absolute paths —
+supplies one absolute path per request; the sidecar verifies the regular file,
+signature, size, and destination before copying it into the selected workspace
+folder. The original file is left unchanged.
+
+Pasted content uses `POST /references/paste`, which carries the bytes instead of
+a path because the clipboard has no file to point at. The same verification runs
+either way: the signature is read from the bytes, the destination is contained,
+and what landed is checked before the reference row is created. Both endpoints
+are host-only — one names a path only this machine understands, and the other is
+an upload the shared listener does not accept.
 
 The OpenAI-compatible provider is configured through `GET`/`PUT /ai/settings`
 with a base URL, model, optional API key, and enabled flag. The key is stored only

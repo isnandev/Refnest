@@ -6,6 +6,7 @@ import {
   COLUMN_MIN,
   boundedColumns
 } from "@/features/library/library-columns"
+import { selectionTags } from "@/features/library/selection-tags"
 import {
   retainVisible,
   selectionRange
@@ -38,6 +39,31 @@ describe("bulk selection", () => {
     expect([...retainVisible(selected, [first, second])]).toEqual([first])
     expect(retainVisible(selected, ids)).toBe(selected)
     expect(retainVisible(new Set(), [])).toEqual(new Set())
+  })
+})
+
+describe("bulk tags", () => {
+  it("counts how much of the selection carries each tag", () => {
+    expect(
+      selectionTags([
+        { tags: ["type", "print"] },
+        { tags: ["type"] },
+        { tags: [] }
+      ])
+    ).toEqual([
+      { tag: "type", count: 2 },
+      { tag: "print", count: 1 }
+    ])
+  })
+
+  it("counts a reference once per tag and sorts ties alphabetically", () => {
+    expect(
+      selectionTags([{ tags: ["ui", "ui"] }, { tags: ["motion"] }])
+    ).toEqual([
+      { tag: "motion", count: 1 },
+      { tag: "ui", count: 1 }
+    ])
+    expect(selectionTags([])).toEqual([])
   })
 })
 

@@ -16,6 +16,7 @@ import {
   isActiveCapture,
   settledCaptureJobs
 } from "@/features/library/capture-job"
+import { captureUrlFromText } from "@/features/library/capture-url"
 
 const workspaceId = WorkspaceId.make("workspace_test")
 const timestamp = DateTime.unsafeMake("2026-08-12T00:00:00.000Z")
@@ -137,5 +138,28 @@ describe("settledCaptureJobs", () => {
     expect(settledCaptureJobs(new Map(), [job("capture_new", "completed")])).toEqual(
       []
     )
+  })
+})
+
+describe("pasted capture links", () => {
+  it("takes a whole HTTP or HTTPS URL, as pasted", () => {
+    expect(captureUrlFromText("https://dribbble.com/shots/123")).toBe(
+      "https://dribbble.com/shots/123"
+    )
+    expect(captureUrlFromText("  http://example.com/a.jpg\n")).toBe(
+      "http://example.com/a.jpg"
+    )
+  })
+
+  it("leaves anything that is not a whole link alone", () => {
+    expect(captureUrlFromText("")).toBeNull()
+    expect(captureUrlFromText("look at https://example.com")).toBeNull()
+    expect(captureUrlFromText("C:\\Users\\me\\shot.png")).toBeNull()
+    expect(captureUrlFromText("ftp://example.com/a.png")).toBeNull()
+    expect(captureUrlFromText("javascript:alert(1)")).toBeNull()
+  })
+
+  it("refuses a URL the sidecar would reject for carrying credentials", () => {
+    expect(captureUrlFromText("https://user:pass@example.com/a.png")).toBeNull()
   })
 })

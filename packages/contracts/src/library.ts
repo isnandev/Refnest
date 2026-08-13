@@ -90,6 +90,27 @@ export type ReferenceSource = typeof ReferenceSource.Type
 export const ReferenceStatus = Schema.Literal("active", "trash")
 export type ReferenceStatus = typeof ReferenceStatus.Type
 
+export const REFERENCE_RATING_MAX = 5
+
+/** Zero is "unrated" rather than a bad rating, so clearing a star is possible. */
+export const ReferenceRating = Schema.Int.pipe(
+  Schema.between(0, REFERENCE_RATING_MAX)
+)
+export type ReferenceRating = typeof ReferenceRating.Type
+
+export const ReferenceSortField = Schema.Literal(
+  "date-added",
+  "date-modified",
+  "date-created",
+  "name",
+  "size",
+  "rating"
+)
+export type ReferenceSortField = typeof ReferenceSortField.Type
+
+export const ReferenceSortDirection = Schema.Literal("asc", "desc")
+export type ReferenceSortDirection = typeof ReferenceSortDirection.Type
+
 export const ReferenceView = Schema.Literal(
   "all",
   "uncategorized",
@@ -152,11 +173,19 @@ export class InspirationReference extends Schema.Class<InspirationReference>(
   durationSeconds: Schema.NullOr(Schema.Number.pipe(Schema.nonNegative())),
   fileSizeBytes: Schema.Int.pipe(Schema.nonNegative()),
   favorite: Schema.Boolean,
+  rating: ReferenceRating,
   status: ReferenceStatus,
   tags: Schema.Array(ReferenceTag),
   colors: Schema.Array(HexColor),
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
+  /**
+   * The source file's own timestamps, kept apart from `createdAt`, which is
+   * when this library first saw it. Null when the reference never was a file
+   * on this machine — a web capture has no birth time to report.
+   */
+  fileCreatedAt: Schema.NullOr(Schema.DateTimeUtc),
+  fileModifiedAt: Schema.NullOr(Schema.DateTimeUtc),
   lastViewedAt: Schema.NullOr(Schema.DateTimeUtc)
 }) {}
 
@@ -170,13 +199,50 @@ export class ImportLocalReference extends Schema.Class<ImportLocalReference>(
   )
 }) {}
 
+/**
+ * The decoded ceiling for pasted content, well above any clipboard image and
+ * far below what the desktop's IPC hop should be asked to carry — base64 adds a
+ * third on top of this. Anything larger belongs to the path-based import, which
+ * never puts the bytes on the wire at all.
+ */
+export const REFERENCE_PASTE_MAX_BYTES = 32 * 1_024 * 1_024
+
+/**
+ * The clipboard holds content, not a path, so a pasted image arrives as bytes.
+ * Everything else about it — what it is, whether it is safe to keep — is read
+ * from those bytes by the sidecar rather than taken from the caller.
+ */
+export class ImportPastedReference extends Schema.Class<ImportPastedReference>(
+  "ImportPastedReference"
+)({
+  workspaceId: WorkspaceId,
+  folderId: Schema.NullOr(FolderId),
+  /** What the clipboard called the content, when it named it at all. */
+  name: Schema.optional(
+    Schema.NonEmptyTrimmedString.pipe(
+      Schema.maxLength(REFERENCE_TITLE_MAX_LENGTH)
+    )
+  ),
+  bytes: Schema.Uint8ArrayFromBase64.pipe(
+    Schema.filter((value) =>
+      value.byteLength === 0
+        ? "pasted content cannot be empty"
+        : value.byteLength > REFERENCE_PASTE_MAX_BYTES
+          ? `pasted content can be at most ${REFERENCE_PASTE_MAX_BYTES} bytes`
+          : true
+    )
+  )
+}) {}
+
 export class ListReferences extends Schema.Class<ListReferences>("ListReferences")({
   workspaceId: WorkspaceId,
   folderId: Schema.optional(FolderId),
   smartFolderId: Schema.optional(SmartFolderId),
   view: Schema.optional(ReferenceView),
   query: Schema.optional(Schema.String),
-  includeSubfolders: Schema.optional(Schema.BooleanFromString)
+  includeSubfolders: Schema.optional(Schema.BooleanFromString),
+  sort: Schema.optional(ReferenceSortField),
+  direction: Schema.optional(ReferenceSortDirection)
 }) {}
 
 export class UpdateInspirationReference extends Schema.Class<UpdateInspirationReference>(
@@ -185,10 +251,31 @@ export class UpdateInspirationReference extends Schema.Class<UpdateInspirationRe
   folderId: Schema.optional(Schema.NullOr(FolderId)),
   title: Schema.optional(ReferenceTitle),
   description: Schema.optional(ReferenceDescription),
+  sourceUrl: Schema.optional(ReferenceSourceUrl),
   favorite: Schema.optional(Schema.Boolean),
+  rating: Schema.optional(ReferenceRating),
   status: Schema.optional(ReferenceStatus),
   tags: Schema.optional(Schema.Array(ReferenceTag)),
   colors: Schema.optional(Schema.Array(HexColor))
+}) {}
+
+/**
+ * Host-only: the destination is an absolute path on the machine running the
+ * sidecar, so it can only mean something to a caller sitting at it.
+ */
+export class ExportReference extends Schema.Class<ExportReference>(
+  "ExportReference"
+)({
+  destinationPath: Schema.NonEmptyTrimmedString.pipe(
+    Schema.maxLength(REFERENCE_IMPORT_PATH_MAX_LENGTH)
+  )
+}) {}
+
+export class ExportedReference extends Schema.Class<ExportedReference>(
+  "ExportedReference"
+)({
+  path: Schema.NonEmptyTrimmedString,
+  fileSizeBytes: Schema.Int.pipe(Schema.nonNegative())
 }) {}
 
 export const SmartFolderRuleKind = Schema.Literal(

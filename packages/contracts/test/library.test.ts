@@ -40,11 +40,14 @@ describe("library contracts", () => {
         durationSeconds: null,
         fileSizeBytes: 3_800_000,
         favorite: false,
+        rating: 4,
         status: "active",
         tags: ["Dark", "Editorial"],
         colors: ["#0E0E0E", "#F5F5F5"],
         createdAt: "2026-08-11T00:00:00.000Z",
         updatedAt: "2026-08-11T00:00:00.000Z",
+        fileCreatedAt: null,
+        fileModifiedAt: null,
         lastViewedAt: null
       })
 

@@ -245,7 +245,11 @@ const makeCaptureEngine = Effect.gen(function* () {
       durationSeconds: artifact.durationSeconds,
       fileSizeBytes: artifact.fileSizeBytes,
       tags: [request.source === "x" ? "X" : request.source],
-      colors: []
+      colors: [],
+      // A page that was captured was never a file anywhere, so it has no file
+      // timestamps to report — only the moment the library made one.
+      fileCreatedAt: null,
+      fileModifiedAt: null
     } satisfies CapturedReference
   })
 

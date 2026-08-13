@@ -65,7 +65,9 @@ describe("authenticated reference asset delivery", () => {
                 durationSeconds: null,
                 fileSizeBytes: PNG_BYTES.byteLength,
                 tags: [],
-                colors: []
+                colors: [],
+                fileCreatedAt: null,
+                fileModifiedAt: null
               })
             }).pipe(Effect.provide(applicationServicesLive(databasePath)))
           )
@@ -170,7 +172,9 @@ describe("authenticated reference asset delivery", () => {
                 durationSeconds: null,
                 fileSizeBytes: PNG_BYTES.byteLength,
                 tags: [],
-                colors: []
+                colors: [],
+                fileCreatedAt: null,
+                fileModifiedAt: null
               })
             }).pipe(Effect.provide(applicationServicesLive(databasePath)))
           )

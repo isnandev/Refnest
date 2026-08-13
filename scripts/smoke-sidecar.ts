@@ -245,6 +245,10 @@ try {
     | undefined
   const workspaceId = workspaces?.[0]?.id
   let importConverted = false
+  let importDated = false
+  let ratingStored = false
+  let sortApplied = false
+  let exportWritten = false
   if (typeof workspaceId === "string") {
     await call("import reference", "/references/import", {
       method: "POST",
@@ -256,11 +260,50 @@ try {
       })
     })
     const imported = checks.at(-1)?.[2] as
-      | { mimeType?: unknown; previewUrl?: unknown }
+      | {
+          id?: unknown
+          mimeType?: unknown
+          previewUrl?: unknown
+          rating?: unknown
+          fileCreatedAt?: unknown
+          fileModifiedAt?: unknown
+        }
       | undefined
     importConverted =
       imported?.mimeType === "image/jpeg" &&
       typeof imported.previewUrl === "string"
+    // The import carries the source file's own timestamps, and starts unrated.
+    importDated =
+      imported?.rating === 0 && typeof imported.fileModifiedAt === "string"
+
+    const referenceId = imported?.id
+    if (typeof referenceId === "string") {
+      await call("rate reference", `/references/${referenceId}`, {
+        method: "PATCH",
+        headers: { ...authorized, "content-type": "application/json" },
+        body: JSON.stringify({ rating: 4 })
+      })
+      ratingStored =
+        (checks.at(-1)?.[2] as { rating?: unknown } | undefined)?.rating === 4
+
+      await call(
+        "list references sorted",
+        `/references?workspaceId=${encodeURIComponent(workspaceId)}&sort=rating&direction=desc`,
+        { headers: authorized }
+      )
+      const sorted = checks.at(-1)?.[2] as
+        | ReadonlyArray<{ rating?: unknown }>
+        | undefined
+      sortApplied = sorted !== undefined && sorted[0]?.rating === 4
+
+      const exportPath = join(conversionDirectory, "exported.jpg")
+      await call("export reference", `/references/${referenceId}/export`, {
+        method: "POST",
+        headers: { ...authorized, "content-type": "application/json" },
+        body: JSON.stringify({ destinationPath: exportPath })
+      })
+      exportWritten = await Bun.file(exportPath).exists()
+    }
   }
 
   const initializeRequest = {
@@ -371,7 +414,11 @@ try {
     negotiatedProtocol !== REFNEST_MCP_PROTOCOL_VERSION ||
     !bridgePassed ||
     !conversionProduced ||
-    !importConverted
+    !importConverted ||
+    !importDated ||
+    !ratingStored ||
+    !sortApplied ||
+    !exportWritten
   ) {
     const labels = [
       ...failed.map(([label]) => label),
@@ -380,7 +427,11 @@ try {
         : ["MCP protocol negotiation"]),
       ...(bridgePassed ? [] : ["MCP stdio bridge"]),
       ...(conversionProduced ? [] : ["image conversion output"]),
-      ...(importConverted ? [] : ["import conversion and preview"])
+      ...(importConverted ? [] : ["import conversion and preview"]),
+      ...(importDated ? [] : ["imported file timestamps"]),
+      ...(ratingStored ? [] : ["stored rating"]),
+      ...(sortApplied ? [] : ["sorted listing"]),
+      ...(exportWritten ? [] : ["exported file"])
     ]
     console.error(`smoke failed: ${labels.join(", ")}`)
     process.exitCode = 1

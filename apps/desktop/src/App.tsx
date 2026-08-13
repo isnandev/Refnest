@@ -3,6 +3,7 @@ import {
   selectedWorkspaceId,
   UpdateDesktopSettings,
   type EnvironmentId,
+  type LibraryViewPreferencesPatch,
   type ThemePreference,
   type WorkspaceId
 } from "@refnest/contracts"
@@ -67,6 +68,12 @@ export default function App() {
     },
     [appSettings.update]
   )
+  const persistLibraryView = useCallback(
+    (libraryView: LibraryViewPreferencesPatch) => {
+      appSettings.update(new UpdateDesktopSettings({ libraryView }))
+    },
+    [appSettings.update]
+  )
 
   const theme = useTheme(settings.themePreference, persistTheme)
   const environments = useEnvironments(
@@ -120,6 +127,8 @@ export default function App() {
           theme={theme.theme}
           aiEnabled={aiEnabled}
           libraryName={environments.active?.name ?? null}
+          view={settings.libraryView}
+          onViewChange={persistLibraryView}
           onLocalLibrary={onLocalLibrary}
           onSelectWorkspace={workspaces.select}
           onCreateWorkspace={() => {

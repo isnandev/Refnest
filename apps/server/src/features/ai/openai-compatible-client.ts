@@ -2,18 +2,23 @@ import {
   AiNotConfigured,
   AiRequestFailed,
   FolderId,
-  HexColor,
-  ReferenceDescription,
-  ReferenceTag,
-  ReferenceTitle,
   type ReferenceKind,
   type ReferenceSource
 } from "@refnest/contracts"
 import { Buffer } from "node:buffer"
 import { Context, Effect, Layer, Schema } from "effect"
+import { localSourceFileName } from "../references/local-source-url"
 import { AiProviderPolicy } from "./ai-provider-policy"
+import {
+  MAX_METADATA_COLORS,
+  MAX_METADATA_TAGS,
+  type MetadataResponse,
+  readMetadataResponse
+} from "./ai-metadata-response"
 import { readAiResponseText } from "./ai-response-reader"
 import type { AiProviderSettings } from "./ai-settings-repository"
+
+export type { MetadataResponse } from "./ai-metadata-response"
 
 export type MetadataFolderOption = {
   readonly id: FolderId
@@ -26,18 +31,11 @@ export type MetadataRequest = {
   readonly sourceUrl: string
   readonly source: ReferenceSource
   readonly kind: ReferenceKind
+  readonly assetPath: string
   readonly previewPath: string | null
+  readonly mimeType: string
   readonly folders: ReadonlyArray<MetadataFolderOption>
 }
-
-const MetadataResponse = Schema.Struct({
-  title: ReferenceTitle,
-  description: ReferenceDescription,
-  tags: Schema.Array(ReferenceTag).pipe(Schema.maxItems(12)),
-  colors: Schema.Array(HexColor).pipe(Schema.maxItems(8)),
-  suggestedFolderId: Schema.NullOr(FolderId)
-})
-export type MetadataResponse = typeof MetadataResponse.Type
 
 const ChatCompletionResponse = Schema.Struct({
   choices: Schema.Array(
@@ -47,26 +45,73 @@ const ChatCompletionResponse = Schema.Struct({
   ).pipe(Schema.minItems(1))
 })
 
+/** What OpenAI-compatible vision endpoints agree on accepting inline. */
+const VISION_MIME_TYPES: ReadonlySet<string> = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif"
+])
+
+const MAX_INLINE_IMAGE_BYTES = 5 * 1_024 * 1_024
+
 const requestFailure = (reason: string) => new AiRequestFailed({ reason })
 
-const readPreviewDataUrl = (path: string | null) =>
+const discardBody = (response: Response) =>
+  Effect.promise(async () => {
+    await response.body?.cancel().catch(() => undefined)
+  })
+
+const baseMimeType = (value: string) =>
+  value.split(";", 1)[0]?.trim().toLocaleLowerCase() ?? ""
+
+const readImageDataUrl = (path: string | null, declaredMimeType: string | null) =>
   Effect.tryPromise({
     try: async () => {
-      if (path === null) return null
+      if (path === null || path.length === 0) return null
       const file = Bun.file(path)
-      if (!(await file.exists()) || file.size > 5 * 1_024 * 1_024) return null
-      const mimeType = file.type || "image/png"
+      const mimeType = baseMimeType(declaredMimeType ?? file.type)
+      if (!VISION_MIME_TYPES.has(mimeType)) return null
+      if (file.size <= 0 || file.size > MAX_INLINE_IMAGE_BYTES) return null
+      if (!(await file.exists())) return null
       const bytes = await file.arrayBuffer()
       return `data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}`
     },
-    catch: () => requestFailure("The reference preview could not be prepared for AI.")
+    catch: () => requestFailure("The reference image could not be prepared for AI.")
   })
 
-const stripJsonFence = (content: string) =>
-  content
-    .trim()
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "")
+/**
+ * The downscaled preview exists for exactly this. References captured before
+ * it, or imports whose bytes were kept as they were, have no preview on disk,
+ * so the stored asset is attached instead: sending no image at all is what
+ * makes a model answer with an apology rather than metadata.
+ */
+const readInlineImage = (request: MetadataRequest) =>
+  Effect.gen(function* () {
+    const preview = yield* readImageDataUrl(request.previewPath, null)
+    if (preview !== null) return preview
+    return yield* readImageDataUrl(request.assetPath, request.mimeType)
+  })
+
+/**
+ * A locally imported file is recorded against a placeholder URL that is
+ * designed never to resolve. Handing that to a model reads as an image it is
+ * expected to fetch, so the file name goes in its place.
+ */
+const describeSource = (request: MetadataRequest) => {
+  const fileName = localSourceFileName(request.sourceUrl)
+  return fileName === null
+    ? { sourceUrl: request.sourceUrl }
+    : { sourceFile: fileName }
+}
+
+const SYSTEM_PROMPT = [
+  "You label saved design references.",
+  "Reply with a single JSON object and nothing else: no prose, no apology, no code fence.",
+  "Any image is attached to the user message as inline data, so never ask for a URL and never try to fetch one.",
+  "When no image is attached, work from the supplied text and still return the JSON object.",
+  "Use practical design vocabulary, and choose suggestedFolderId from the listed folder ids or null, never an invented one."
+].join(" ")
 
 export type OpenAiCompatibleClientShape = {
   readonly generateMetadata: (
@@ -101,7 +146,7 @@ const makeOpenAiCompatibleClient = Effect.gen(function* () {
           )
         )
 
-      const preview = yield* readPreviewDataUrl(request.previewPath)
+      const image = yield* readInlineImage(request)
       const folderOptions = request.folders.map((folder) => ({
         id: folder.id,
         name: folder.name
@@ -110,25 +155,32 @@ const makeOpenAiCompatibleClient = Effect.gen(function* () {
         task: "Describe and organize this saved design inspiration.",
         currentTitle: request.currentTitle,
         currentDescription: request.currentDescription,
-        sourceUrl: request.sourceUrl,
+        ...describeSource(request),
         source: request.source,
         kind: request.kind,
+        imageAttached: image !== null,
         folders: folderOptions,
         output: {
           title: "concise descriptive title",
           description: "what is visually useful about this reference",
-          tags: "up to 12 useful visual/product tags",
-          colors: "up to 8 dominant #RRGGBB colors",
+          tags: `up to ${MAX_METADATA_TAGS} useful visual/product tags`,
+          colors: `up to ${MAX_METADATA_COLORS} dominant #RRGGBB colors`,
           suggestedFolderId: "one listed folder id or null"
         }
       })
-      const userContent =
-        preview === null
-          ? text
-          : [
-              { type: "text", text },
-              { type: "image_url", image_url: { url: preview } }
-            ]
+      const messages = [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content:
+            image === null
+              ? text
+              : [
+                  { type: "text", text },
+                  { type: "image_url", image_url: { url: image } }
+                ]
+        }
+      ]
       const headers: Record<string, string> = {
         "content-type": "application/json"
       }
@@ -136,33 +188,41 @@ const makeOpenAiCompatibleClient = Effect.gen(function* () {
         headers["authorization"] = `Bearer ${settings.apiKey}`
       }
 
-      const response = yield* Effect.tryPromise({
-        try: () =>
-          fetch(provider.completionUrl, {
-            method: "POST",
-            headers,
-            redirect: "error",
-            body: JSON.stringify({
-              model: settings.model,
-              temperature: 0.2,
-              messages: [
-                {
-                  role: "system",
-                  content:
-                    "Return only valid JSON. Preserve factual source information, use practical design vocabulary, and never invent a folder id."
-                },
-                { role: "user", content: userContent }
-              ]
+      const postCompletion = (jsonMode: boolean) =>
+        Effect.tryPromise({
+          try: () =>
+            fetch(provider.completionUrl, {
+              method: "POST",
+              headers,
+              redirect: "error",
+              body: JSON.stringify({
+                model: settings.model,
+                temperature: 0.2,
+                // Asking for JSON is what stops a chat-tuned model from
+                // answering in prose; the system prompt names JSON too,
+                // which providers require before honouring this.
+                ...(jsonMode
+                  ? { response_format: { type: "json_object" } }
+                  : {}),
+                messages
+              }),
+              signal: AbortSignal.timeout(60_000)
             }),
-            signal: AbortSignal.timeout(60_000)
-          }),
-        catch: () => requestFailure("The OpenAI-compatible provider could not be reached.")
-      })
+          catch: () =>
+            requestFailure("The OpenAI-compatible provider could not be reached.")
+        })
+
+      let response = yield* postCompletion(true)
+      if (response.status === 400) {
+        // A server that does not know response_format rejects the whole
+        // request, and a bare 400 is the only notice it gives, so the call is
+        // retried once without it rather than failing enrichment outright.
+        yield* discardBody(response)
+        response = yield* postCompletion(false)
+      }
 
       if (!response.ok) {
-        yield* Effect.promise(async () => {
-          await response.body?.cancel().catch(() => undefined)
-        })
+        yield* discardBody(response)
         return yield* requestFailure(
           `The AI provider returned status ${response.status}.`
         )
@@ -185,16 +245,10 @@ const makeOpenAiCompatibleClient = Effect.gen(function* () {
         return yield* requestFailure("The AI provider returned an empty completion.")
       }
 
-      const metadataJson = yield* Effect.try({
-        try: () => JSON.parse(stripJsonFence(content)),
-        catch: () => requestFailure("The AI provider did not return valid metadata JSON.")
+      return yield* readMetadataResponse(content, {
+        currentTitle: request.currentTitle,
+        folderIds: new Set(folderOptions.map((folder) => folder.id))
       })
-
-      return yield* Schema.decodeUnknown(MetadataResponse)(metadataJson).pipe(
-        Effect.mapError(() =>
-          requestFailure("The AI metadata did not match the required fields.")
-        )
-      )
     }
   )
 

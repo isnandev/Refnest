@@ -72,12 +72,16 @@ describe("library data mapping", () => {
         workspaceId,
         { kind: "view", view: "favorites" },
         "  editorial  ",
-        false
+        false,
+        "name",
+        "asc"
       )
     ).toMatchObject({
       workspaceId,
       view: "favorites",
-      query: "editorial"
+      query: "editorial",
+      sort: "name",
+      direction: "asc"
     })
 
     expect(
@@ -85,7 +89,9 @@ describe("library data mapping", () => {
         workspaceId,
         { kind: "folder", id: rootId },
         "",
-        true
+        true,
+        "date-added",
+        "desc"
       )
     ).toMatchObject({ workspaceId, folderId: rootId, includeSubfolders: true })
 
@@ -95,9 +101,11 @@ describe("library data mapping", () => {
         workspaceId,
         { kind: "smart-folder", id: smartFolderId },
         "",
-        false
+        false,
+        "rating",
+        "desc"
       )
-    ).toMatchObject({ workspaceId, smartFolderId })
+    ).toMatchObject({ workspaceId, smartFolderId, sort: "rating" })
     expect(
       librarySelectionKey({ kind: "smart-folder", id: smartFolderId })
     ).toBe(`smart-folder:${smartFolderId}`)

@@ -1,12 +1,16 @@
 import {
+  REFERENCE_TAG_MAX_LENGTH,
+  ReferenceTag,
   UpdateInspirationReference,
+  type FolderId,
   type InspirationReference,
+  type LibraryViewPreferences,
+  type LibraryViewPreferencesPatch,
   type ReferenceId,
   type WorkspaceId
 } from "@refnest/contracts"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
-import { COLUMN_DEFAULT } from "./library-columns"
 import {
   ALL_REFERENCES_SELECTION,
   PRIMARY_FOLDERS,
@@ -16,16 +20,42 @@ import {
   folderLabel,
   type LibrarySelection
 } from "./library-data"
+import { parseTagList } from "./library-format"
 import { useDebouncedValue } from "./use-debounced-value"
 import { useLibraryData } from "./use-library-data"
 import { useLibraryShortcuts } from "./use-library-shortcuts"
 import { useQuickSave } from "./use-quick-save"
 import { useReferenceAssets } from "./use-reference-assets"
+import { useReferenceDrop } from "./use-reference-drop"
+import { useReferenceExport } from "./use-reference-export"
 import { useReferenceImport } from "./use-reference-import"
 import { useReferenceSelection } from "./use-reference-selection"
+import { usePasteToLibrary } from "./use-paste-to-library"
 
-/** Coordinates library state while `ReferenceLibrary` stays a composition page. */
-export const useReferenceLibrary = (workspaceId: WorkspaceId | null) => {
+const toReferenceTags = (tags: ReadonlyArray<string>) =>
+  tags
+    .filter((tag) => tag.length <= REFERENCE_TAG_MAX_LENGTH)
+    .map((tag) => ReferenceTag.make(tag))
+
+/**
+ * Coordinates library state while `ReferenceLibrary` stays a composition page.
+ * How the grid presents itself lives in the saved view document rather than in
+ * this hook, so every preference survives a restart.
+ */
+export const useReferenceLibrary = ({
+  workspaceId,
+  canImport,
+  aiEnabled,
+  view,
+  onViewChange
+}: {
+  readonly workspaceId: WorkspaceId | null
+  /** Local import is host-only, so a remote library can neither pick nor drop. */
+  readonly canImport: boolean
+  readonly aiEnabled: boolean
+  readonly view: LibraryViewPreferences
+  readonly onViewChange: (patch: LibraryViewPreferencesPatch) => void
+}) => {
   const [activeSelection, setActiveSelection] = useState<LibrarySelection>(
     ALL_REFERENCES_SELECTION
   )
@@ -33,12 +63,9 @@ export const useReferenceLibrary = (workspaceId: WorkspaceId | null) => {
   const [activeItem, setActiveItem] = useState<InspirationReference | null>(null)
   const [viewerId, setViewerId] = useState<ReferenceId | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [columns, setColumns] = useState(COLUMN_DEFAULT)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [viewOptionsOpen, setViewOptionsOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState("All")
-  const [includeSubfolders, setIncludeSubfolders] = useState(true)
-  /** The imagery is the point; details are a deliberate request. */
-  const [inspectorOpen, setInspectorOpen] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [quickSaveOpen, setQuickSaveOpen] = useState(false)
   const [folderCreateOpen, setFolderCreateOpen] = useState(false)
@@ -48,13 +75,41 @@ export const useReferenceLibrary = (workspaceId: WorkspaceId | null) => {
     workspaceId,
     activeSelection,
     debouncedQuery,
-    includeSubfolders
+    view.showSubfolderContents,
+    view.sort,
+    view.sortDirection
   )
   const quickSave = useQuickSave(workspaceId, () => {
     void library.refresh()
   })
-  const referenceImport = useReferenceImport(workspaceId, () => {
-    void library.refresh()
+  const referenceImport = useReferenceImport({
+    workspaceId,
+    canImport,
+    onImported: () => {
+      void library.refresh()
+    }
+  })
+  const referenceExport = useReferenceExport()
+  /**
+   * Everything added without a dialog — a dropped file, a pasted link — lands
+   * in the folder being viewed, exactly where the menu's own actions put it.
+   */
+  const addDestination =
+    activeSelection.kind === "folder" ? activeSelection.id : null
+  const referenceDrop = useReferenceDrop({
+    canImport: canImport && workspaceId !== null,
+    onDrop: (paths) => {
+      void referenceImport.importFiles(paths, addDestination)
+    }
+  })
+  usePasteToLibrary({
+    enabled: workspaceId !== null,
+    onPasteUrl: (url) => {
+      void quickSave.create(url, addDestination, aiEnabled)
+    },
+    onPasteFile: (file) => {
+      void referenceImport.importPastedFile(file, addDestination)
+    }
   })
 
   useEffect(() => {
@@ -120,7 +175,11 @@ export const useReferenceLibrary = (workspaceId: WorkspaceId | null) => {
     }
     return [...visibleItems, activeItem]
   }, [activeItem, visibleItems])
-  const assets = useReferenceAssets(workspaceId, assetReferences)
+  const assets = useReferenceAssets(
+    workspaceId,
+    assetReferences,
+    view.thumbnailQuality
+  )
   const viewerIndex = viewerId === null ? -1 : orderedIds.indexOf(viewerId)
   const viewerItem =
     viewerId === null
@@ -134,6 +193,11 @@ export const useReferenceLibrary = (workspaceId: WorkspaceId | null) => {
     onSelectAll: selection.selectAll,
     onClearSelection: selection.clear
   })
+
+  const setInspectorOpen = useCallback(
+    (open: boolean) => onViewChange({ showInspector: open }),
+    [onViewChange]
+  )
 
   const selectFolder = useCallback(
     (selectionTarget: LibrarySelection) => {
@@ -178,7 +242,7 @@ export const useReferenceLibrary = (workspaceId: WorkspaceId | null) => {
       setActiveItem(loaded)
       setInspectorOpen(true)
     },
-    [library.loadReference]
+    [library.loadReference, setInspectorOpen]
   )
 
   const updateActive = useCallback(
@@ -211,12 +275,10 @@ export const useReferenceLibrary = (workspaceId: WorkspaceId | null) => {
     }
   }, [updateActive])
 
-  const forgetTrashedActive = useCallback(
-    (ids: ReadonlySet<ReferenceId>) => {
-      if (activeItem !== null && ids.has(activeItem.id)) setActiveItem(null)
-    },
-    [activeItem]
-  )
+  const exportActive = useCallback(async () => {
+    if (activeItem === null) return
+    await referenceExport.exportToFile(activeItem)
+  }, [activeItem, referenceExport.exportToFile])
 
   const favoriteSelected = useCallback(
     async (favorite: boolean) => {
@@ -228,11 +290,80 @@ export const useReferenceLibrary = (workspaceId: WorkspaceId | null) => {
     [library.updateReferences, selection.ids]
   )
 
+  const moveSelected = useCallback(
+    async (folderId: FolderId | null) => {
+      await library.updateReferences(
+        [...selection.ids],
+        new UpdateInspirationReference({ folderId })
+      )
+    },
+    [library.updateReferences, selection.ids]
+  )
+
+  const rateSelected = useCallback(
+    async (rating: number) => {
+      await library.updateReferences(
+        [...selection.ids],
+        new UpdateInspirationReference({ rating })
+      )
+    },
+    [library.updateReferences, selection.ids]
+  )
+
+  /** Adding keeps what each reference already carries, so every patch differs. */
+  const addTagsToSelected = useCallback(
+    async (value: string) => {
+      const added = parseTagList(value)
+      if (added.length === 0) return
+
+      await library.updateEachReference(
+        selectedItems.flatMap((item) => {
+          const missing = added.filter((tag) => !item.tags.includes(tag))
+          return missing.length === 0
+            ? []
+            : [
+                [
+                  item.id,
+                  new UpdateInspirationReference({
+                    tags: toReferenceTags([...item.tags, ...missing])
+                  })
+                ] as const
+              ]
+        })
+      )
+    },
+    [library.updateEachReference, selectedItems]
+  )
+
+  const removeTagFromSelected = useCallback(
+    async (tag: string) => {
+      await library.updateEachReference(
+        selectedItems.flatMap((item) =>
+          item.tags.includes(tag)
+            ? [
+                [
+                  item.id,
+                  new UpdateInspirationReference({
+                    tags: toReferenceTags(
+                      item.tags.filter((current) => current !== tag)
+                    )
+                  })
+                ] as const
+              ]
+            : []
+        )
+      )
+    },
+    [library.updateEachReference, selectedItems]
+  )
+
   const trashSelected = useCallback(async () => {
     const ids = selection.ids
     const result = await library.removeReferences([...ids])
-    if (result.succeeded > 0) forgetTrashedActive(ids)
-  }, [forgetTrashedActive, library.removeReferences, selection.ids])
+    if (result.succeeded > 0 && activeItem !== null && ids.has(activeItem.id)) {
+      setActiveItem(null)
+    }
+  }, [activeItem, library.removeReferences, selection.ids])
 
   const restoreSelected = useCallback(async () => {
     await library.updateReferences(
@@ -254,11 +385,9 @@ export const useReferenceLibrary = (workspaceId: WorkspaceId | null) => {
     selection,
     selectedItems,
     searchQuery,
-    columns,
     filtersOpen,
+    viewOptionsOpen,
     activeFilter,
-    includeSubfolders,
-    inspectorOpen,
     mobileSidebarOpen,
     quickSaveOpen,
     folderCreateOpen,
@@ -266,6 +395,8 @@ export const useReferenceLibrary = (workspaceId: WorkspaceId | null) => {
     library,
     quickSave,
     referenceImport,
+    referenceDrop,
+    referenceExport,
     collectionFolders,
     smartFolders,
     filterOptions,
@@ -276,10 +407,9 @@ export const useReferenceLibrary = (workspaceId: WorkspaceId | null) => {
     parentFolder,
     setActiveItem,
     setSearchQuery,
-    setColumns,
     setFiltersOpen,
+    setViewOptionsOpen,
     setActiveFilter,
-    setIncludeSubfolders,
     setInspectorOpen,
     setMobileSidebarOpen,
     setQuickSaveOpen,
@@ -301,7 +431,12 @@ export const useReferenceLibrary = (workspaceId: WorkspaceId | null) => {
     enrichActive,
     trashActive,
     restoreActive,
+    exportActive,
     favoriteSelected,
+    moveSelected,
+    rateSelected,
+    addTagsToSelected,
+    removeTagFromSelected,
     trashSelected,
     restoreSelected
   } as const

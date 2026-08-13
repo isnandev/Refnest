@@ -1,67 +1,36 @@
 import {
-  REFERENCE_DESCRIPTION_MAX_LENGTH,
-  REFERENCE_TAG_MAX_LENGTH,
-  REFERENCE_TITLE_MAX_LENGTH,
-  ReferenceTag,
   UpdateInspirationReference,
   type InspirationReference
 } from "@refnest/contracts"
 import {
   ExternalLink,
   Heart,
-  Image as ImageIcon,
   PanelRightClose,
   Replace,
   RotateCcw,
   Sparkles,
-  Tag,
-  Trash2
+  Trash2,
+  Upload
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { formatFileSize } from "@/lib/format"
 import { cn } from "@/lib/utils"
-import { EditableProperty } from "./editable-property"
-import {
-  formatDimensions,
-  formatLibraryDate,
-  formatReferenceKind,
-  formatReferenceSource,
-  formatTagList,
-  parseTagList
-} from "./library-format"
+import { InspectorMetadata } from "./inspector-metadata"
+import { InspectorProperties } from "./inspector-properties"
+import type { LibraryFolder } from "./library-data"
+import { formatReferenceKind, referenceExtension } from "./library-format"
 import { ReferencePreview } from "./reference-preview"
 
-function PropertyRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid grid-cols-[84px_minmax(0,1fr)] gap-3 py-1.5 text-body-sm">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-words text-foreground">{value}</dd>
-    </div>
-  )
-}
-
-const validateTitle = (value: string) =>
-  value.length === 0
-    ? "A title is required."
-    : value.length > REFERENCE_TITLE_MAX_LENGTH
-      ? `A title can be at most ${REFERENCE_TITLE_MAX_LENGTH} characters.`
-      : null
-
-const validateDescription = (value: string) =>
-  value.length > REFERENCE_DESCRIPTION_MAX_LENGTH
-    ? `A description can be at most ${REFERENCE_DESCRIPTION_MAX_LENGTH} characters.`
-    : null
-
-const validateTags = (value: string) =>
-  parseTagList(value).some((tag) => tag.length > REFERENCE_TAG_MAX_LENGTH)
-    ? `A tag can be at most ${REFERENCE_TAG_MAX_LENGTH} characters.`
-    : null
-
+/**
+ * The detail panel: the image, its palette, the metadata that can be edited,
+ * and the properties that only report. It is collapsed until asked for, so
+ * everything here is a deliberate request rather than permanent chrome.
+ */
 export function InspectorPanel({
   item,
   imageUrl,
   imageFailed,
+  folders,
   folderLabel,
   itemCount,
   canEnrich,
@@ -75,11 +44,13 @@ export function InspectorPanel({
   onEnrich,
   canConvert,
   onConvert,
+  onExport,
   onOpenSource
 }: {
   readonly item: InspirationReference | null
   readonly imageUrl: string | undefined
   readonly imageFailed: boolean
+  readonly folders: readonly LibraryFolder[]
   readonly folderLabel: string
   readonly itemCount: number
   readonly canEnrich: boolean
@@ -95,6 +66,7 @@ export function InspectorPanel({
   readonly onEnrich: () => void
   readonly canConvert: boolean
   readonly onConvert: () => void
+  readonly onExport: () => void
   readonly onOpenSource: () => void
 }) {
   const editable = item !== null && item.status !== "trash" && !pending
@@ -110,23 +82,7 @@ export function InspectorPanel({
             <p className="text-caption text-muted-foreground">
               {item === null ? "Collection" : formatReferenceKind(item.kind)}
             </p>
-
-            {item === null ? (
-              <h2 className="mt-1 text-h3">{folderLabel}</h2>
-            ) : (
-              <EditableProperty
-                label="Title"
-                value={item.title}
-                disabled={!editable}
-                className="mt-1"
-                validate={validateTitle}
-                onCommit={(title) =>
-                  onEditMetadata(new UpdateInspirationReference({ title }))
-                }
-              >
-                <h2 className="text-h3">{item.title}</h2>
-              </EditableProperty>
-            )}
+            {item === null && <h2 className="mt-1 text-h3">{folderLabel}</h2>}
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
@@ -160,156 +116,92 @@ export function InspectorPanel({
           </div>
         </div>
 
-        {item !== null && (
-          <div className="mt-4 aspect-[4/3] overflow-hidden rounded-md border bg-stage">
-            <ReferencePreview
-              reference={item}
-              url={imageUrl}
-              failed={imageFailed}
-              alt={`Preview of ${item.title}`}
-            />
-          </div>
-        )}
-
         {item === null ? (
           <div className="mt-4 rounded-sm border bg-surface-muted p-3 text-body-sm text-muted-foreground">
-            {itemCount} references in {folderLabel}. Select one to inspect its
-            saved metadata.
+            {itemCount} references in {folderLabel}. Open one to inspect and edit
+            its saved metadata.
           </div>
         ) : (
-          <EditableProperty
-            label="Description"
-            value={item.description}
-            placeholder="Describe this reference…"
-            multiline
-            disabled={!editable}
-            className="mt-4"
-            validate={validateDescription}
-            onCommit={(description) =>
-              onEditMetadata(new UpdateInspirationReference({ description }))
-            }
-          >
-            <span className="block rounded-sm border bg-surface-muted p-3 text-body-sm text-muted-foreground">
-              {item.description.length > 0
-                ? item.description
-                : "No description has been saved for this reference yet."}
-            </span>
-          </EditableProperty>
+          <>
+            <div className="relative mt-3 aspect-[4/3] overflow-hidden rounded-md border bg-stage">
+              <ReferencePreview
+                reference={item}
+                url={imageUrl}
+                failed={imageFailed}
+                alt={`Preview of ${item.title}`}
+                className="size-full object-contain object-center"
+              />
+              <span className="absolute left-2 top-2 rounded-full bg-surface-inverse/90 px-2 py-0.5 text-caption text-on-inverse">
+                {referenceExtension(item)}
+              </span>
+            </div>
+
+            {item.colors.length > 0 && (
+              <div
+                className="mt-3 flex flex-wrap justify-center gap-2"
+                aria-label="Dominant colors"
+              >
+                {item.colors.map((color) => (
+                  <span
+                    key={color}
+                    title={color}
+                    className="size-6 rounded-full border border-input"
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            )}
+
+            <InspectorMetadata
+              item={item}
+              folders={folders}
+              disabled={!editable}
+              onEditMetadata={onEditMetadata}
+            />
+
+            {actionError !== null && (
+              <p
+                role="alert"
+                className="mt-3 rounded-sm bg-danger-container p-3 text-body-sm text-danger"
+              >
+                {actionError}
+              </p>
+            )}
+
+            <InspectorProperties
+              item={item}
+              disabled={!editable}
+              onRate={(rating) => {
+                void onEditMetadata(
+                  new UpdateInspirationReference({ rating })
+                )
+              }}
+            />
+
+            <button
+              type="button"
+              className="mt-4 flex h-9 w-full items-center gap-2 rounded-sm text-body-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent"
+              disabled={item.source === "local-file"}
+              title={
+                item.source === "local-file"
+                  ? "This reference came from a file, not a page."
+                  : undefined
+              }
+              onClick={onOpenSource}
+            >
+              <ExternalLink className="size-4" aria-hidden="true" />
+              Open original source
+            </button>
+          </>
         )}
 
-        {actionError !== null && (
+        {item === null && actionError !== null && (
           <p
             role="alert"
             className="mt-3 rounded-sm bg-danger-container p-3 text-body-sm text-danger"
           >
             {actionError}
           </p>
-        )}
-
-        <div className="mt-5 border-t pt-4">
-          <h3 className="text-label">Properties</h3>
-          <dl className="mt-2">
-            {item === null ? (
-              <PropertyRow label="Items" value={String(itemCount)} />
-            ) : (
-              <>
-                <PropertyRow label="Dimensions" value={formatDimensions(item)} />
-                <PropertyRow
-                  label="File size"
-                  value={formatFileSize(item.fileSizeBytes)}
-                />
-                <PropertyRow label="Type" value={item.mimeType} />
-                <PropertyRow
-                  label="Imported"
-                  value={formatLibraryDate(item.createdAt)}
-                />
-                <PropertyRow
-                  label="Source"
-                  value={formatReferenceSource(item.source)}
-                />
-              </>
-            )}
-          </dl>
-        </div>
-
-        {item !== null && (
-          <>
-            <div className="mt-5 border-t pt-4">
-              <div className="flex items-center gap-2 text-label">
-                <Tag className="size-4 text-muted-foreground" aria-hidden="true" />
-                Tags
-              </div>
-
-              <EditableProperty
-                label="Tags"
-                value={formatTagList(item.tags)}
-                placeholder="editorial, dark, grid"
-                disabled={!editable}
-                className="mt-2"
-                validate={validateTags}
-                onCommit={(value) =>
-                  onEditMetadata(
-                    new UpdateInspirationReference({
-                      tags: parseTagList(value).map((tag) =>
-                        ReferenceTag.make(tag)
-                      )
-                    })
-                  )
-                }
-              >
-                {item.tags.length === 0 ? (
-                  <span className="block text-caption text-muted-foreground">
-                    No tags
-                  </span>
-                ) : (
-                  <span className="flex flex-wrap gap-1.5">
-                    {item.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full border bg-surface-muted px-2.5 py-1 text-caption"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </span>
-                )}
-              </EditableProperty>
-            </div>
-
-            <div className="mt-5 border-t pt-4">
-              <div className="flex items-center gap-2 text-label">
-                <ImageIcon className="size-4 text-muted-foreground" aria-hidden="true" />
-                Palette
-              </div>
-              {item.colors.length === 0 ? (
-                <p className="mt-2 text-caption text-muted-foreground">
-                  No palette extracted
-                </p>
-              ) : (
-                <div className="mt-3 flex gap-2" aria-label="Dominant colors">
-                  {item.colors.map((color) => (
-                    <span
-                      key={color}
-                      title={color}
-                      className="size-7 rounded-full border border-input"
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {item.source !== "local-file" && (
-              <button
-                type="button"
-                className="mt-5 flex h-9 w-full items-center gap-2 rounded-sm text-body-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
-                onClick={onOpenSource}
-              >
-                <ExternalLink className="size-4" aria-hidden="true" />
-                Open original source
-              </button>
-            )}
-          </>
         )}
       </div>
 
@@ -358,6 +250,17 @@ export function InspectorPanel({
             >
               <Trash2 aria-hidden="true" />
               Move to trash
+            </Button>
+          )}
+          {canConvert && (
+            <Button
+              type="button"
+              className="w-full"
+              disabled={pending}
+              onClick={onExport}
+            >
+              <Upload aria-hidden="true" />
+              Export
             </Button>
           )}
         </div>

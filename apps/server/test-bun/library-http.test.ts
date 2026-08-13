@@ -83,7 +83,9 @@ describe("library over HTTP", () => {
                 durationSeconds: null,
                 fileSizeBytes: 1,
                 tags: ["Dark", "Editorial"],
-                colors: ["#101010"]
+                colors: ["#101010"],
+                fileCreatedAt: null,
+                fileModifiedAt: null
               })
             }).pipe(Effect.provide(applicationServicesLive(databasePath)))
           )

@@ -1,10 +1,24 @@
-import type { InspirationReference } from "@refnest/contracts"
+import type {
+  InspirationReference,
+  ReferenceItemInfo
+} from "@refnest/contracts"
 import { DateTime } from "effect"
+
+import { formatFileSize } from "@/lib/format"
 
 const date = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" })
 
+const dateTime = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "short",
+  timeStyle: "short"
+})
+
 export const formatLibraryDate = (value: DateTime.Utc) =>
   date.format(DateTime.toDate(value))
+
+/** A date the file may not carry reads as unknown rather than as an epoch. */
+export const formatLibraryDateTime = (value: DateTime.Utc | null) =>
+  value === null ? "Unknown" : dateTime.format(DateTime.toDate(value))
 
 export const formatDimensions = (
   reference: Pick<InspirationReference, "width" | "height">
@@ -46,6 +60,48 @@ export const formatReferenceSource = (
       return "Dribbble"
     case "website":
       return "Website"
+  }
+}
+
+/**
+ * The extension a saved file would carry, read from the stored MIME type — the
+ * asset URL is a route, not a filename, so it cannot answer this.
+ */
+export const referenceExtension = (
+  reference: Pick<InspirationReference, "mimeType">
+) => {
+  const subtype = reference.mimeType.split("/")[1]?.split("+")[0] ?? ""
+  if (subtype.length === 0) return "FILE"
+  return (subtype === "jpeg" ? "jpg" : subtype).toLocaleUpperCase()
+}
+
+export const formatReferenceItemInfo = (
+  reference: InspirationReference,
+  info: ReferenceItemInfo
+) => {
+  switch (info) {
+    case "dimensions":
+      return formatDimensions(reference)
+    case "size":
+      return formatFileSize(reference.fileSizeBytes)
+    case "type":
+      return referenceExtension(reference)
+    case "date-added":
+      return formatLibraryDate(reference.createdAt)
+  }
+}
+
+/**
+ * Every reference carries an absolute source URL, so a file imported from disk
+ * gets a stand-in under a `.invalid` host — reserved by RFC 2606 and therefore
+ * never a real address. The inspector offers an empty link field instead of
+ * showing one.
+ */
+export const isPlaceholderSourceUrl = (sourceUrl: string) => {
+  try {
+    return new URL(sourceUrl).hostname.endsWith(".invalid")
+  } catch {
+    return false
   }
 }
 

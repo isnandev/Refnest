@@ -37,7 +37,19 @@ const saveDesktopSettings = (patch: UpdateDesktopSettings) =>
 const mergePatches = (
   current: UpdateDesktopSettings | null,
   next: UpdateDesktopSettings
-) => new UpdateDesktopSettings({ ...current, ...next })
+) =>
+  new UpdateDesktopSettings({
+    ...current,
+    ...next,
+    // The view patch is nested, so a plain spread would throw away whatever the
+    // queued patch already set — flip two toggles inside one save window and
+    // only the second would reach the sidecar.
+    ...(current?.libraryView === undefined && next.libraryView === undefined
+      ? {}
+      : {
+          libraryView: { ...current?.libraryView, ...next.libraryView }
+        })
+  })
 
 /**
  * Owns the single Bun/SQLite-backed desktop settings document.

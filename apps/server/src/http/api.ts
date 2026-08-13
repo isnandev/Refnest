@@ -10,6 +10,7 @@ import { FoldersHttpLive } from "../features/folders/folders-http"
 import { NotesHttpLive } from "../features/notes/notes-http"
 import { QuickSaveHttpLive } from "../features/quick-save/quick-save-http"
 import {
+  ReferenceExportHttpLive,
   ReferenceImportHttpLive,
   ReferencesHttpLive
 } from "../features/references/references-http"
@@ -35,6 +36,7 @@ const ContractApiLive = HttpApiBuilder.api(RefNestApi).pipe(
   Layer.provide(QuickSaveHttpLive),
   Layer.provide(ReferencesHttpLive),
   Layer.provide(ReferenceImportHttpLive),
+  Layer.provide(ReferenceExportHttpLive),
   Layer.provide(SettingsHttpLive),
   Layer.provide(SharingHttpLive),
   Layer.provide(SmartFoldersHttpLive),

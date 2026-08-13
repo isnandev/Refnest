@@ -41,8 +41,11 @@ import { HealthReport } from "./health"
 import {
   CreateLibraryFolder,
   CreateSmartFolder,
+  ExportedReference,
+  ExportReference,
   FolderId,
   ImportLocalReference,
+  ImportPastedReference,
   InspirationReference,
   LibraryFolder,
   LibraryNotFound,
@@ -293,13 +296,32 @@ export const referencesGroup = HttpApiGroup.make("references")
   )
 
 /**
- * Host-only: the payload is an absolute path on the machine running the
- * sidecar, which means nothing to a remote device.
+ * Host-only, for two different reasons. `importLocal` takes an absolute path on
+ * the machine running the sidecar, which means nothing to a remote device.
+ * `importPasted` carries content rather than a path and would travel, but the
+ * shared listener is plain HTTP on a local network and accepts no uploads.
  */
-export const referenceImportGroup = HttpApiGroup.make("referenceImport").add(
-  HttpApiEndpoint.post("importLocal")`/references/import`
-    .setPayload(ImportLocalReference)
-    .addSuccess(InspirationReference, { status: 201 })
+export const referenceImportGroup = HttpApiGroup.make("referenceImport")
+  .add(
+    HttpApiEndpoint.post("importLocal")`/references/import`
+      .setPayload(ImportLocalReference)
+      .addSuccess(InspirationReference, { status: 201 })
+      .addError(LibraryNotFound)
+      .addError(LibraryOperationFailed)
+  )
+  .add(
+    HttpApiEndpoint.post("importPasted")`/references/paste`
+      .setPayload(ImportPastedReference)
+      .addSuccess(InspirationReference, { status: 201 })
+      .addError(LibraryNotFound)
+      .addError(LibraryOperationFailed)
+  )
+
+/** Host-only for the same reason: the destination is a path on this machine. */
+export const referenceExportGroup = HttpApiGroup.make("referenceExport").add(
+  HttpApiEndpoint.post("exportLocal")`/references/${referenceIdParam}/export`
+    .setPayload(ExportReference)
+    .addSuccess(ExportedReference, { status: 201 })
     .addError(LibraryNotFound)
     .addError(LibraryOperationFailed)
 )
@@ -421,6 +443,7 @@ export const RefNestApi = HttpApi.make("refnest")
   .add(foldersGroup)
   .add(referencesGroup)
   .add(referenceImportGroup)
+  .add(referenceExportGroup)
   .add(assetsGroup)
   .add(smartFoldersGroup)
   .add(quickSaveGroup)

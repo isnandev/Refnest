@@ -1,6 +1,7 @@
 import { HttpApiBuilder } from "@effect/platform"
 import { RefNestApi, RefNestSharedApi } from "@refnest/contracts"
 import { Effect } from "effect"
+import { ReferenceExportService } from "./reference-export-service"
 import { ReferenceImportService } from "./reference-import-service"
 import { ReferenceService } from "./reference-service"
 import { toPublicReference } from "./reference-model"
@@ -56,8 +57,8 @@ export const SharedReferencesHttpLive = HttpApiBuilder.group(
 )
 
 /**
- * Host-only: the payload names an absolute path on the machine running the
- * sidecar, so it can only ever mean something to a caller sitting at it.
+ * Host-only: one endpoint names an absolute path on the machine running the
+ * sidecar, and the other carries an upload the shared listener does not accept.
  */
 export const ReferenceImportHttpLive = HttpApiBuilder.group(
   RefNestApi,
@@ -66,8 +67,26 @@ export const ReferenceImportHttpLive = HttpApiBuilder.group(
     Effect.gen(function* () {
       const imports = yield* ReferenceImportService
 
-      return handlers.handle("importLocal", ({ payload }) =>
-        imports.importLocal(payload).pipe(Effect.map(toPublicReference))
+      return handlers
+        .handle("importLocal", ({ payload }) =>
+          imports.importLocal(payload).pipe(Effect.map(toPublicReference))
+        )
+        .handle("importPasted", ({ payload }) =>
+          imports.importPasted(payload).pipe(Effect.map(toPublicReference))
+        )
+    })
+)
+
+/** Host-only for the same reason: the destination is a path on this machine. */
+export const ReferenceExportHttpLive = HttpApiBuilder.group(
+  RefNestApi,
+  "referenceExport",
+  (handlers) =>
+    Effect.gen(function* () {
+      const exports = yield* ReferenceExportService
+
+      return handlers.handle("exportLocal", ({ path, payload }) =>
+        exports.exportLocal(path.id, payload)
       )
     })
 )

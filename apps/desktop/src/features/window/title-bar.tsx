@@ -4,8 +4,13 @@ import type { ReactNode } from "react"
 import { cn } from "@/lib/utils"
 import { useWindowControls } from "./use-window-controls"
 
+/**
+ * The window controls are buttons on the canvas rather than a system strip: a
+ * quiet pair that fill on hover, and a close button that carries the danger
+ * token permanently, because closing is the one control that ends the session.
+ */
 const controlButton =
-  "flex h-full w-11 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none"
+  "flex h-8 w-10 items-center justify-center rounded-sm text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
 
 /**
  * Frameless title bar: the whole strip is a drag region, with native-style
@@ -35,7 +40,7 @@ export function TitleBar({
         {children !== undefined && <div className="flex items-center gap-1 px-2">{children}</div>}
 
         {isTauri && (
-          <div className="flex h-full items-stretch">
+          <div className="flex items-center gap-1 px-2">
             <button
               type="button"
               className={controlButton}
@@ -62,7 +67,7 @@ export function TitleBar({
               type="button"
               className={cn(
                 controlButton,
-                "hover:bg-danger hover:text-danger-foreground"
+                "bg-danger text-on-primary hover:bg-danger hover:text-on-primary hover:brightness-110"
               )}
               onClick={close}
               aria-label="Close window"

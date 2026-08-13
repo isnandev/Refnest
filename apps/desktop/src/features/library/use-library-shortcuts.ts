@@ -1,17 +1,6 @@
 import { useEffect } from "react"
 
-/** A key pressed inside a field or a modal belongs to that surface, not the grid. */
-const handledElsewhere = (target: EventTarget | null) => {
-  if (!(target instanceof HTMLElement)) return false
-
-  return (
-    target.isContentEditable ||
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
-    target.closest('[role="dialog"]') !== null
-  )
-}
+import { isEditingSurface } from "./editing-surface"
 
 /** Selection keys for the grid: clear with Escape, take everything with Ctrl/Cmd+A. */
 export const useLibraryShortcuts = ({
@@ -27,7 +16,7 @@ export const useLibraryShortcuts = ({
     if (!enabled) return
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (handledElsewhere(event.target)) return
+      if (isEditingSurface(event.target)) return
 
       if (event.key === "Escape") {
         onClearSelection()

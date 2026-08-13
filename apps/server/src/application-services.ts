@@ -32,6 +32,7 @@ import {
   QuickSaveSchedulerLive
 } from "./features/quick-save/quick-save-scheduler"
 import { YtDlpDownloaderLive } from "./features/quick-save/yt-dlp-downloader"
+import { ReferenceExportServiceLive } from "./features/references/reference-export-service"
 import { ReferenceImportServiceLive } from "./features/references/reference-import-service"
 import { ReferenceServiceLive } from "./features/references/reference-service"
 import { PairingServiceLive } from "./features/sharing/pairing-service"
@@ -90,6 +91,9 @@ export const applicationServicesLive = (
     Layer.provide(
       Layer.mergeAll(infrastructure, folders, references, imageCodec, settings)
     )
+  )
+  const referenceExports = ReferenceExportServiceLive.pipe(
+    Layer.provide(references)
   )
   const assets = AssetServiceLive.pipe(
     Layer.provide(infrastructure)
@@ -185,6 +189,7 @@ export const applicationServicesLive = (
     folders,
     references,
     referenceImports,
+    referenceExports,
     assets,
     converter,
     smartFolders,

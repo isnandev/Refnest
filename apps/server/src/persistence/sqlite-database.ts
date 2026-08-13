@@ -51,11 +51,15 @@ const migrate = (database: Database) => {
       duration_seconds REAL,
       file_size_bytes INTEGER NOT NULL,
       favorite INTEGER NOT NULL DEFAULT 0,
+      rating INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'active',
       tags_json TEXT NOT NULL DEFAULT '[]',
       colors_json TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
+      -- The source file's own timestamps, which are not this library's.
+      file_created_at TEXT,
+      file_modified_at TEXT,
       last_viewed_at TEXT
     );
 
@@ -161,6 +165,25 @@ const migrate = (database: Database) => {
       "ALTER TABLE ai_settings ADD COLUMN local_provider INTEGER NOT NULL DEFAULT 0"
     )
   }
+
+  // A library saved before ratings and file timestamps existed keeps every row;
+  // the added columns simply read as unrated and undated until something writes
+  // them.
+  const referenceColumns = database
+    .query<
+      { readonly name: string },
+      []
+    >("PRAGMA table_info(inspiration_references)")
+    .all()
+  const addReferenceColumn = (name: string, definition: string) => {
+    if (referenceColumns.some((column) => column.name === name)) return
+    database.run(
+      `ALTER TABLE inspiration_references ADD COLUMN ${name} ${definition}`
+    )
+  }
+  addReferenceColumn("rating", "INTEGER NOT NULL DEFAULT 0")
+  addReferenceColumn("file_created_at", "TEXT")
+  addReferenceColumn("file_modified_at", "TEXT")
 
   database
     .query<never, [string, string, string]>(`

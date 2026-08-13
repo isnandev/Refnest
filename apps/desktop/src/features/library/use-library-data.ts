@@ -5,6 +5,8 @@ import {
   type InspirationReference,
   type LibraryFolder,
   type ReferenceId,
+  type ReferenceSortDirection,
+  type ReferenceSortField,
   type SmartFolder,
   type WorkspaceId
 } from "@refnest/contracts"
@@ -62,7 +64,9 @@ const listReferences = (
   workspaceId: WorkspaceId,
   selection: LibrarySelection,
   query: string,
-  includeSubfolders: boolean
+  includeSubfolders: boolean,
+  sort: ReferenceSortField,
+  direction: ReferenceSortDirection
 ) =>
   Effect.gen(function* () {
     const api = yield* ApiClient
@@ -72,7 +76,9 @@ const listReferences = (
         workspaceId,
         selection,
         query,
-        includeSubfolders
+        includeSubfolders,
+        sort,
+        direction
       )
     })
   }).pipe(Effect.mapError(toApiFailure))
@@ -115,7 +121,9 @@ export const useLibraryData = (
   workspaceId: WorkspaceId | null,
   selection: LibrarySelection,
   query: string,
-  includeSubfolders: boolean
+  includeSubfolders: boolean,
+  sort: ReferenceSortField,
+  direction: ReferenceSortDirection
 ) => {
   const [navigation, setNavigation] = useState<LibraryNavigationState>({
     status: "loading",
@@ -173,7 +181,14 @@ export const useLibraryData = (
     }))
     const result = await appRuntime.runPromise(
       Effect.either(
-        listReferences(workspaceId, selection, query, includeSubfolders)
+        listReferences(
+          workspaceId,
+          selection,
+          query,
+          includeSubfolders,
+          sort,
+          direction
+        )
       )
     )
 
@@ -187,7 +202,7 @@ export const useLibraryData = (
             message: result.left.message
           }
     )
-  }, [includeSubfolders, query, selection, workspaceId])
+  }, [direction, includeSubfolders, query, selection, sort, workspaceId])
 
   useEffect(() => {
     void refreshNavigation()
@@ -299,30 +314,28 @@ export const useLibraryData = (
    * some references fail, and the count of failures becomes the message.
    */
   const runBulk = useCallback(
-    async (
-      ids: ReadonlyArray<ReferenceId>,
-      operation: (
-        id: ReferenceId
-      ) => Effect.Effect<unknown, ApiFailure, ApiClient>,
+    async <T,>(
+      targets: ReadonlyArray<T>,
+      operation: (target: T) => Effect.Effect<unknown, ApiFailure, ApiClient>,
       failureMessage: (failed: number, total: number) => string
     ) => {
-      if (ids.length === 0) return { succeeded: 0, failed: 0 } as const
+      if (targets.length === 0) return { succeeded: 0, failed: 0 } as const
 
       setPending(true)
       setActionError(null)
 
       try {
         const [failures] = await appRuntime.runPromise(
-          Effect.partition(ids, operation, { concurrency: BULK_CONCURRENCY })
+          Effect.partition(targets, operation, { concurrency: BULK_CONCURRENCY })
         )
 
         if (failures.length > 0) {
-          setActionError(failureMessage(failures.length, ids.length))
+          setActionError(failureMessage(failures.length, targets.length))
         }
         await Promise.all([refreshNavigation(), refreshReferences()])
 
         return {
-          succeeded: ids.length - failures.length,
+          succeeded: targets.length - failures.length,
           failed: failures.length
         } as const
       } finally {
@@ -332,15 +345,28 @@ export const useLibraryData = (
     [refreshNavigation, refreshReferences]
   )
 
-  const updateMany = useCallback(
-    (ids: ReadonlyArray<ReferenceId>, patch: UpdateInspirationReference) =>
+  /**
+   * One patch per reference, for the edits that depend on what a reference
+   * already carries — adding a tag keeps the tags it has, so the whole
+   * selection cannot share a single patch.
+   */
+  const updateEach = useCallback(
+    (
+      edits: ReadonlyArray<readonly [ReferenceId, UpdateInspirationReference]>
+    ) =>
       runBulk(
-        ids,
-        (id) => updateReference(id, patch),
+        edits,
+        ([id, patch]) => updateReference(id, patch),
         (failed, total) =>
           `${failed} of ${total} references could not be updated.`
       ),
     [runBulk]
+  )
+
+  const updateMany = useCallback(
+    (ids: ReadonlyArray<ReferenceId>, patch: UpdateInspirationReference) =>
+      updateEach(ids.map((id) => [id, patch] as const)),
+    [updateEach]
   )
 
   const removeMany = useCallback(
@@ -372,6 +398,7 @@ export const useLibraryData = (
     createFolder: create,
     updateReference: update,
     updateReferences: updateMany,
+    updateEachReference: updateEach,
     removeReference: remove,
     removeReferences: removeMany,
     enrichReference: enrich

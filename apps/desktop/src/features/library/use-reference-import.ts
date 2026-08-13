@@ -1,5 +1,8 @@
 import {
   ImportLocalReference,
+  ImportPastedReference,
+  REFERENCE_PASTE_MAX_BYTES,
+  REFERENCE_TITLE_MAX_LENGTH,
   type FolderId,
   type InspirationReference,
   type WorkspaceId
@@ -12,6 +15,7 @@ import { isTauriRuntime } from "@/features/window/tauri-runtime"
 import { ApiClient } from "@/lib/api/client"
 import { ApiFailure, toApiFailure } from "@/lib/api/errors"
 import { appRuntime } from "@/lib/runtime"
+import { IMPORTABLE_EXTENSIONS, importablePaths } from "./importable-files"
 
 const pickReferenceFiles = Effect.tryPromise({
   try: () => {
@@ -26,27 +30,7 @@ const pickReferenceFiles = Effect.tryPromise({
       filters: [
         {
           name: "Images, videos, and PDFs",
-          extensions: [
-            "avif",
-            "avi",
-            "bmp",
-            "gif",
-            "jpeg",
-            "jpg",
-            "m4v",
-            "mkv",
-            "mov",
-            "mp4",
-            "ogg",
-            "ogv",
-            "pdf",
-            "png",
-            "svg",
-            "tif",
-            "tiff",
-            "webm",
-            "webp"
-          ]
+          extensions: [...IMPORTABLE_EXTENSIONS]
         }
       ]
     })
@@ -54,14 +38,12 @@ const pickReferenceFiles = Effect.tryPromise({
   catch: toApiFailure
 })
 
-const importSelectedFiles = (
+const importPaths = (
   workspaceId: WorkspaceId,
-  folderId: FolderId | null
+  folderId: FolderId | null,
+  paths: ReadonlyArray<string>
 ) =>
   Effect.gen(function* () {
-    const paths = yield* pickReferenceFiles
-    if (paths === null) return { imported: [], failures: [] } as const
-
     const api = yield* ApiClient
     const outcomes = yield* Effect.forEach(
       paths,
@@ -84,31 +66,89 @@ const importSelectedFiles = (
     } as const
   })
 
+const importSelectedFiles = (
+  workspaceId: WorkspaceId,
+  folderId: FolderId | null
+) =>
+  Effect.gen(function* () {
+    const paths = yield* pickReferenceFiles
+    if (paths === null) return { imported: [], failures: [] } as const
+
+    return yield* importPaths(workspaceId, folderId, paths)
+  })
+
+/**
+ * Pasted content has no path to send, so the bytes themselves travel. The
+ * clipboard's own name is passed along only as a suggestion — the sidecar reads
+ * the bytes to decide what this actually is.
+ */
+const importPastedContent = (
+  workspaceId: WorkspaceId,
+  folderId: FolderId | null,
+  file: File
+) =>
+  Effect.gen(function* () {
+    const bytes = yield* Effect.tryPromise({
+      try: async () => new Uint8Array(await file.arrayBuffer()),
+      catch: toApiFailure
+    })
+    const name = file.name.trim().slice(0, REFERENCE_TITLE_MAX_LENGTH)
+    const api = yield* ApiClient
+    const reference = yield* api.referenceImport
+      .importPasted({
+        payload: new ImportPastedReference({
+          workspaceId,
+          folderId,
+          ...(name.length === 0 ? {} : { name }),
+          bytes
+        })
+      })
+      .pipe(Effect.mapError(toApiFailure))
+
+    return { imported: [reference], failures: [] } as const
+  })
+
 /** Owns native file selection and the typed local import requests. */
-export const useReferenceImport = (
-  workspaceId: WorkspaceId | null,
-  onImported: (references: ReadonlyArray<InspirationReference>) => void
-) => {
+export const useReferenceImport = ({
+  workspaceId,
+  canImport,
+  onImported
+}: {
+  readonly workspaceId: WorkspaceId | null
+  /** Import is host-only, so a remote library refuses rather than 404s. */
+  readonly canImport: boolean
+  readonly onImported: (references: ReadonlyArray<InspirationReference>) => void
+}) => {
   const [pending, setPending] = useState(false)
+  /** How many files the run in flight carries, so progress can be reported. */
+  const [pendingCount, setPendingCount] = useState(0)
   const [actionError, setActionError] = useState<string | null>(null)
   const onImportedRef = useRef(onImported)
   onImportedRef.current = onImported
 
   useEffect(() => {
     setPending(false)
+    setPendingCount(0)
     setActionError(null)
   }, [workspaceId])
 
-  const selectAndImport = useCallback(
-    async (folderId: FolderId | null) => {
-      if (workspaceId === null) return []
-
+  const run = useCallback(
+    async (
+      operation: Effect.Effect<
+        {
+          readonly imported: ReadonlyArray<InspirationReference>
+          readonly failures: ReadonlyArray<ApiFailure>
+        },
+        ApiFailure,
+        ApiClient
+      >,
+      count: number
+    ) => {
       setPending(true)
+      setPendingCount(count)
       setActionError(null)
       try {
-        const result = await appRuntime.runPromise(
-          Effect.either(importSelectedFiles(workspaceId, folderId))
-        )
+        const result = await appRuntime.runPromise(Effect.either(operation))
         if (result._tag === "Left") {
           setActionError(result.left.message)
           return []
@@ -132,15 +172,82 @@ export const useReferenceImport = (
         return []
       } finally {
         setPending(false)
+        setPendingCount(0)
       }
     },
-    [workspaceId]
+    []
+  )
+
+  /** Says why nothing happened, rather than letting a refusal look like a bug. */
+  const refuse = useCallback((what: string) => {
+    setActionError(
+      `${what} can only be added to the library running on this machine.`
+    )
+    return [] as ReadonlyArray<InspirationReference>
+  }, [])
+
+  const selectAndImport = useCallback(
+    async (folderId: FolderId | null) => {
+      if (workspaceId === null) return []
+      if (!canImport) return refuse("Files")
+
+      return run(importSelectedFiles(workspaceId, folderId), 0)
+    },
+    [canImport, refuse, run, workspaceId]
+  )
+
+  /**
+   * The dropped paths, filtered to what the library will take. A drop that
+   * carried nothing importable says so rather than reporting a silent success.
+   */
+  const importFiles = useCallback(
+    async (paths: ReadonlyArray<string>, folderId: FolderId | null) => {
+      if (workspaceId === null) return []
+      if (!canImport) return refuse("Dropped files")
+
+      const importable = importablePaths(paths)
+      if (importable.length === 0) {
+        setActionError(
+          paths.length === 1
+            ? "That file is not an image, video, or PDF the library can import."
+            : "None of those files are images, videos, or PDFs the library can import."
+        )
+        return []
+      }
+
+      return run(
+        importPaths(workspaceId, folderId, importable),
+        importable.length
+      )
+    },
+    [canImport, refuse, run, workspaceId]
+  )
+
+  /** The clipboard's own content, sent as bytes because it never was a file. */
+  const importPastedFile = useCallback(
+    async (file: File, folderId: FolderId | null) => {
+      if (workspaceId === null) return []
+      if (!canImport) return refuse("Pasted images")
+
+      if (file.size > REFERENCE_PASTE_MAX_BYTES) {
+        setActionError(
+          `A pasted file can be at most ${Math.floor(REFERENCE_PASTE_MAX_BYTES / (1_024 * 1_024))} MB. Drag it onto the window instead — a dropped file is read from disk rather than carried through the clipboard.`
+        )
+        return []
+      }
+
+      return run(importPastedContent(workspaceId, folderId, file), 1)
+    },
+    [canImport, refuse, run, workspaceId]
   )
 
   return {
     pending,
+    pendingCount,
     actionError,
     clearActionError: useCallback(() => setActionError(null), []),
-    selectAndImport
+    selectAndImport,
+    importFiles,
+    importPastedFile
   } as const
 }

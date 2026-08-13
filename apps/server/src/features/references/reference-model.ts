@@ -34,11 +34,14 @@ export type ReferenceRow = {
   readonly duration_seconds: number | null
   readonly file_size_bytes: number
   readonly favorite: number
+  readonly rating: number
   readonly status: string
   readonly tags_json: string
   readonly colors_json: string
   readonly created_at: string
   readonly updated_at: string
+  readonly file_created_at: string | null
+  readonly file_modified_at: string | null
   readonly last_viewed_at: string | null
 }
 
@@ -59,6 +62,9 @@ export type CapturedReference = {
   readonly fileSizeBytes: number
   readonly tags: ReadonlyArray<string>
   readonly colors: ReadonlyArray<string>
+  /** ISO timestamps read off the source file, or null when there was no file. */
+  readonly fileCreatedAt: string | null
+  readonly fileModifiedAt: string | null
 }
 
 const CapturedReferenceCandidate = Schema.Struct({
@@ -79,7 +85,9 @@ const CapturedReferenceCandidate = Schema.Struct({
   durationSeconds: Schema.NullOr(Schema.Number.pipe(Schema.nonNegative())),
   fileSizeBytes: Schema.Int.pipe(Schema.positive()),
   tags: Schema.Array(ReferenceTag).pipe(Schema.maxItems(64)),
-  colors: Schema.Array(HexColor).pipe(Schema.maxItems(16))
+  colors: Schema.Array(HexColor).pipe(Schema.maxItems(16)),
+  fileCreatedAt: Schema.NullOr(Schema.NonEmptyTrimmedString),
+  fileModifiedAt: Schema.NullOr(Schema.NonEmptyTrimmedString)
 })
 
 export type DecodedCapturedReference = typeof CapturedReferenceCandidate.Type
@@ -186,11 +194,14 @@ export const decodeStoredReference = (
       durationSeconds: row.duration_seconds,
       fileSizeBytes: row.file_size_bytes,
       favorite: row.favorite === 1,
+      rating: row.rating,
       status: row.status,
       tags: serializedCollections.tags,
       colors: serializedCollections.colors,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      fileCreatedAt: row.file_created_at,
+      fileModifiedAt: row.file_modified_at,
       lastViewedAt: row.last_viewed_at
     }).pipe(
       Effect.mapError(() => new Error("The stored reference metadata is invalid."))
@@ -222,10 +233,13 @@ export const toPublicReference = (
     durationSeconds: reference.durationSeconds,
     fileSizeBytes: reference.fileSizeBytes,
     favorite: reference.favorite,
+    rating: reference.rating,
     status: reference.status,
     tags: reference.tags,
     colors: reference.colors,
     createdAt: reference.createdAt,
     updatedAt: reference.updatedAt,
+    fileCreatedAt: reference.fileCreatedAt,
+    fileModifiedAt: reference.fileModifiedAt,
     lastViewedAt: reference.lastViewedAt
   })

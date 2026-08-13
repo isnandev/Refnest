@@ -67,6 +67,8 @@ describe("captured reference persistence boundary", () => {
                   fileSizeBytes: 5,
                   tags: [" Website ", "website"],
                   colors: ["#101010"],
+                  fileCreatedAt: null,
+                  fileModifiedAt: null,
                   ...override
                 })
                 .pipe(Effect.either)
@@ -141,7 +143,9 @@ describe("captured reference persistence boundary", () => {
                 durationSeconds: null,
                 fileSizeBytes: 5,
                 tags: [],
-                colors: []
+                colors: [],
+                fileCreatedAt: null,
+                fileModifiedAt: null
               })
               .pipe(Effect.either)
 
@@ -192,7 +196,9 @@ describe("captured reference persistence boundary", () => {
                 durationSeconds: null,
                 fileSizeBytes: 5,
                 tags: [],
-                colors: []
+                colors: [],
+                fileCreatedAt: null,
+                fileModifiedAt: null
               })
               .pipe(Effect.either)
 

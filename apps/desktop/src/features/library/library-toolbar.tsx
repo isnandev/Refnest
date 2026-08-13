@@ -1,9 +1,21 @@
-import { Minus, PanelLeftOpen, Plus, Search, Sparkles, X } from "lucide-react"
+import type {
+  LibraryViewPreferences,
+  LibraryViewPreferencesPatch
+} from "@refnest/contracts"
+import {
+  Minus,
+  PanelLeftOpen,
+  Plus,
+  Search,
+  Sparkles,
+  X
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { FilterPopover } from "./filter-popover"
 import { COLUMN_MAX, COLUMN_MIN, boundedColumns } from "./library-columns"
+import { ViewOptionsPopover } from "./view-options-popover"
 
 const SEARCH_SHORTCUT =
   globalThis.navigator?.userAgent.includes("Mac") === true ? "⌘K" : "Ctrl K"
@@ -12,43 +24,45 @@ export function LibraryToolbar({
   workspaceLabel,
   folderLabel,
   searchQuery,
-  columns,
+  view,
+  viewOptionsOpen,
   filterOpen,
   activeFilter,
   filterOptions,
-  includeSubfolders,
   canEnrich,
   actionPending,
   onOpenSidebar,
   onOpenSearch,
   onClearSearch,
-  onColumnsChange,
+  onViewChange,
+  onViewOptionsOpenChange,
+  onRefresh,
   onFiltersOpenChange,
   onFilterChange,
-  onIncludeSubfoldersChange,
   onEnrich
 }: {
   workspaceLabel: string
   folderLabel: string
   searchQuery: string
-  columns: number
+  view: LibraryViewPreferences
+  viewOptionsOpen: boolean
   filterOpen: boolean
   activeFilter: string
   filterOptions: readonly string[]
-  includeSubfolders: boolean
   canEnrich: boolean
   actionPending: boolean
   onOpenSidebar: () => void
   onOpenSearch: () => void
   onClearSearch: () => void
-  onColumnsChange: (columns: number) => void
+  onViewChange: (patch: LibraryViewPreferencesPatch) => void
+  onViewOptionsOpenChange: (open: boolean) => void
+  onRefresh: () => void
   onFiltersOpenChange: (open: boolean) => void
   onFilterChange: (filter: string) => void
-  onIncludeSubfoldersChange: (include: boolean) => void
   onEnrich: () => void
 }) {
   /** The slider runs zoomed-out to zoomed-in, which is 8 columns down to 1. */
-  const zoomValue = COLUMN_MAX + COLUMN_MIN - columns
+  const zoomValue = COLUMN_MAX + COLUMN_MIN - view.columns
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-1.5" data-tauri-drag-region>
@@ -74,8 +88,10 @@ export function LibraryToolbar({
           variant="ghost"
           size="icon-sm"
           aria-label="Zoom out to more columns"
-          disabled={columns >= COLUMN_MAX}
-          onClick={() => onColumnsChange(boundedColumns(columns + 1))}
+          disabled={view.columns >= COLUMN_MAX}
+          onClick={() =>
+            onViewChange({ columns: boundedColumns(view.columns + 1) })
+          }
         >
           <Minus aria-hidden="true" />
         </Button>
@@ -87,13 +103,13 @@ export function LibraryToolbar({
             max={COLUMN_MAX}
             step="1"
             value={zoomValue}
-            aria-valuetext={`${columns} ${columns === 1 ? "column" : "columns"}`}
+            aria-valuetext={`${view.columns} ${view.columns === 1 ? "column" : "columns"}`}
             onChange={(event) =>
-              onColumnsChange(
-                boundedColumns(
+              onViewChange({
+                columns: boundedColumns(
                   COLUMN_MAX + COLUMN_MIN - Number(event.currentTarget.value)
                 )
-              )
+              })
             }
             className="library-zoom-slider w-20"
           />
@@ -103,13 +119,15 @@ export function LibraryToolbar({
           variant="ghost"
           size="icon-sm"
           aria-label="Zoom in to fewer columns"
-          disabled={columns <= COLUMN_MIN}
-          onClick={() => onColumnsChange(boundedColumns(columns - 1))}
+          disabled={view.columns <= COLUMN_MIN}
+          onClick={() =>
+            onViewChange({ columns: boundedColumns(view.columns - 1) })
+          }
         >
           <Plus aria-hidden="true" />
         </Button>
         <span className="numeric w-10 shrink-0 text-caption text-muted-foreground">
-          {columns} col
+          {view.columns} col
         </span>
       </div>
 
@@ -125,14 +143,19 @@ export function LibraryToolbar({
         >
           <Sparkles aria-hidden="true" />
         </Button>
+        <ViewOptionsPopover
+          open={viewOptionsOpen}
+          view={view}
+          onOpenChange={onViewOptionsOpenChange}
+          onChange={onViewChange}
+          onRefresh={onRefresh}
+        />
         <FilterPopover
           open={filterOpen}
           filters={filterOptions}
           activeFilter={activeFilter}
-          includeSubfolders={includeSubfolders}
           onOpenChange={onFiltersOpenChange}
           onFilterChange={onFilterChange}
-          onIncludeSubfoldersChange={onIncludeSubfoldersChange}
         />
       </div>
 

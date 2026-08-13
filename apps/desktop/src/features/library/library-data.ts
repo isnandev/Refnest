@@ -2,6 +2,8 @@ import {
   ListReferences,
   type FolderId,
   type LibraryFolder as StoredLibraryFolder,
+  type ReferenceSortDirection,
+  type ReferenceSortField,
   type ReferenceView,
   type SmartFolder,
   type SmartFolderId,
@@ -168,7 +170,9 @@ export const toListReferences = (
   workspaceId: WorkspaceId,
   selection: LibrarySelection,
   query: string,
-  includeSubfolders: boolean
+  includeSubfolders: boolean,
+  sort: ReferenceSortField,
+  direction: ReferenceSortDirection
 ) => {
   const normalizedQuery = query.trim()
 
@@ -181,6 +185,8 @@ export const toListReferences = (
     ...(selection.kind === "smart-folder"
       ? { smartFolderId: selection.id }
       : {}),
-    ...(normalizedQuery.length === 0 ? {} : { query: normalizedQuery })
+    ...(normalizedQuery.length === 0 ? {} : { query: normalizedQuery }),
+    sort,
+    direction
   })
 }

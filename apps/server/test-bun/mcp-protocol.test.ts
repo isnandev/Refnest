@@ -353,7 +353,9 @@ describe("RefNest MCP protocol", () => {
           durationSeconds: null,
           fileSizeBytes: PNG_BYTES.byteLength,
           tags: ["MCP"],
-          colors: ["#102030"]
+          colors: ["#102030"],
+          fileCreatedAt: null,
+          fileModifiedAt: null
         })
       )
       const before = await Effect.runPromise(
@@ -539,7 +541,9 @@ describe("RefNest MCP protocol", () => {
           durationSeconds: null,
           fileSizeBytes: PNG_BYTES.byteLength,
           tags: [],
-          colors: []
+          colors: [],
+          fileCreatedAt: null,
+          fileModifiedAt: null
         })
       )
 
@@ -605,7 +609,9 @@ describe("RefNest MCP protocol", () => {
           durationSeconds: null,
           fileSizeBytes: oversizedBytes.byteLength,
           tags: [],
-          colors: []
+          colors: [],
+          fileCreatedAt: null,
+          fileModifiedAt: null
         })
       )
       const rejected = await client.requestMessage("resources/read", {

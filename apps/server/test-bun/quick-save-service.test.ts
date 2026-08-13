@@ -148,7 +148,9 @@ describe("Quick Save service", () => {
                   durationSeconds: null,
                   fileSizeBytes: 1,
                   tags: ["Website"],
-                  colors: []
+                  colors: [],
+                  fileCreatedAt: null,
+                  fileModifiedAt: null
                 }
               })
             })
@@ -355,7 +357,9 @@ describe("Quick Save service", () => {
                           durationSeconds: null,
                           fileSizeBytes: 1,
                           tags: [],
-                          colors: []
+                          colors: [],
+                          fileCreatedAt: null,
+                          fileModifiedAt: null
                         }
                       }),
                     () =>

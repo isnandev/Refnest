@@ -36,6 +36,7 @@ import {
   type ReferenceRow,
   type StoredReference
 } from "./reference-model"
+import { sortReferences } from "./reference-sort"
 
 export type { CapturedReference, StoredReference } from "./reference-model"
 
@@ -170,11 +171,14 @@ const makeReferenceService = Effect.gen(function* () {
     r.duration_seconds,
     r.file_size_bytes,
     r.favorite,
+    r.rating,
     r.status,
     r.tags_json,
     r.colors_json,
     r.created_at,
     r.updated_at,
+    r.file_created_at,
+    r.file_modified_at,
     r.last_viewed_at
   `
   const selectByWorkspace = connection.query<ReferenceRow, [WorkspaceId]>(`
@@ -222,14 +226,17 @@ const makeReferenceService = Effect.gen(function* () {
       string,
       string,
       string,
-      string
+      string,
+      string | null,
+      string | null
     ]
   >(`
     INSERT INTO inspiration_references (
       id, workspace_id, folder_id, title, description, source_url, source, kind,
       asset_relative_path, preview_path, mime_type, width, height, duration_seconds,
-      file_size_bytes, tags_json, colors_json, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      file_size_bytes, tags_json, colors_json, created_at, updated_at,
+      file_created_at, file_modified_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   const updateReference = connection.query<
     never,
@@ -237,6 +244,8 @@ const makeReferenceService = Effect.gen(function* () {
       FolderId | null,
       string,
       string,
+      string,
+      number,
       number,
       ReferenceStatus,
       string,
@@ -247,8 +256,9 @@ const makeReferenceService = Effect.gen(function* () {
     ]
   >(`
     UPDATE inspiration_references
-    SET folder_id = ?, title = ?, description = ?, favorite = ?, status = ?,
-      tags_json = ?, colors_json = ?, asset_relative_path = ?, updated_at = ?
+    SET folder_id = ?, title = ?, description = ?, source_url = ?, favorite = ?,
+      rating = ?, status = ?, tags_json = ?, colors_json = ?,
+      asset_relative_path = ?, updated_at = ?
     WHERE id = ?
   `)
   const deleteReference = connection.query<never, [ReferenceId]>(`
@@ -371,7 +381,7 @@ const makeReferenceService = Effect.gen(function* () {
 
     const query = input.query?.trim().toLocaleLowerCase() ?? ""
 
-    return references.filter((reference) => {
+    const matched = references.filter((reference) => {
       const folderMatches =
         folderIds === null ||
         (reference.folderId !== null && folderIds.has(reference.folderId))
@@ -387,6 +397,8 @@ const makeReferenceService = Effect.gen(function* () {
 
       return folderMatches && smartFolderMatches && queryMatches
     })
+
+    return sortReferences(matched, input.sort, input.direction)
   })
 
   const createCaptured = Effect.fn("ReferenceService.createCaptured")(function* (
@@ -495,7 +507,9 @@ const makeReferenceService = Effect.gen(function* () {
             JSON.stringify(decoded.tags),
             JSON.stringify(decoded.colors),
             now,
-            now
+            now,
+            decoded.fileCreatedAt,
+            decoded.fileModifiedAt
           ),
         catch: () =>
           operationFailure("create", "The captured reference could not be saved.")
@@ -566,7 +580,9 @@ const makeReferenceService = Effect.gen(function* () {
           nextFolderId,
           input.title ?? current.title,
           input.description ?? current.description,
+          input.sourceUrl ?? current.sourceUrl,
           input.favorite === undefined ? (current.favorite ? 1 : 0) : input.favorite ? 1 : 0,
+          input.rating ?? current.rating,
           input.status ?? current.status,
           JSON.stringify(normalizeReferenceTags(tags)),
           JSON.stringify(normalizeReferenceColors(colors)),

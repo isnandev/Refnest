@@ -1,5 +1,10 @@
 import { HttpClientResponse } from "@effect/platform"
-import type { InspirationReference, ReferenceId, WorkspaceId } from "@refnest/contracts"
+import type {
+  InspirationReference,
+  ReferenceId,
+  ThumbnailQuality,
+  WorkspaceId
+} from "@refnest/contracts"
 import { Effect } from "effect"
 import { useEffect, useMemo, useRef, useState } from "react"
 
@@ -10,14 +15,27 @@ import {
 } from "@/lib/api/tauri-http-client"
 import { appRuntime } from "@/lib/runtime"
 
+/**
+ * `speed` renders the stored preview and only falls back to the original.
+ * `quality` reverses that for images, where the preview is a downscale — a
+ * video or PDF has no original worth putting in an `img`, so it keeps its
+ * preview either way.
+ */
 export const referenceImagePath = (
   reference: Pick<
     InspirationReference,
     "previewUrl" | "mimeType" | "assetUrl"
-  >
-) =>
-  reference.previewUrl ??
-  (reference.mimeType.startsWith("image/") ? reference.assetUrl : null)
+  >,
+  quality: ThumbnailQuality = "speed"
+) => {
+  const original = reference.mimeType.startsWith("image/")
+    ? reference.assetUrl
+    : null
+
+  return quality === "quality"
+    ? (original ?? reference.previewUrl)
+    : (reference.previewUrl ?? original)
+}
 
 const loadAsset = (path: string) => {
   if (!path.startsWith("/") || path.startsWith("//")) {
@@ -44,7 +62,8 @@ const loadAsset = (path: string) => {
 /** Loads authenticated image bytes through the Rust proxy and owns their blob URLs. */
 export const useReferenceAssets = (
   workspaceId: WorkspaceId | null,
-  references: ReadonlyArray<InspirationReference>
+  references: ReadonlyArray<InspirationReference>,
+  quality: ThumbnailQuality = "speed"
 ) => {
   const [urls, setUrls] = useState<ReadonlyMap<ReferenceId, string>>(
     () => new Map()
@@ -60,10 +79,10 @@ export const useReferenceAssets = (
       references
         .map(
           (reference) =>
-            `${reference.id}:${referenceImagePath(reference) ?? "none"}`
+            `${reference.id}:${referenceImagePath(reference, quality) ?? "none"}`
         )
         .join("|"),
-    [references]
+    [quality, references]
   )
 
   useEffect(() => {
@@ -80,7 +99,9 @@ export const useReferenceAssets = (
       for (const url of objectUrls.current.values()) URL.revokeObjectURL(url)
       objectUrls.current.clear()
     }
-  }, [workspaceId])
+    // Switching quality changes which bytes every reference should be showing,
+    // so the cache is dropped rather than left holding the other variant.
+  }, [quality, workspaceId])
 
   useEffect(() => {
     if (workspaceId === null) return
@@ -93,7 +114,7 @@ export const useReferenceAssets = (
     }
 
     for (const reference of references) {
-      const path = referenceImagePath(reference)
+      const path = referenceImagePath(reference, quality)
       if (
         path === null ||
         objectUrls.current.has(reference.id) ||
@@ -121,7 +142,7 @@ export const useReferenceAssets = (
         })
         .catch(() => markFailed(reference.id))
     }
-  }, [references, signature, workspaceId])
+  }, [quality, references, signature, workspaceId])
 
   return { urls, failed } as const
 }

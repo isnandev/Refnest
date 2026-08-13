@@ -1,8 +1,11 @@
 import { HttpApiSchema } from "@effect/platform"
 import { Schema } from "effect"
 import { EnvironmentId, LOCAL_ENVIRONMENT_ID } from "./environment"
+import { ReferenceSortDirection, ReferenceSortField } from "./library"
 import { WorkspaceId } from "./workspace"
 
+export const LIBRARY_COLUMN_MIN = 1
+export const LIBRARY_COLUMN_MAX = 8
 export const SIDEBAR_BACKGROUND_OPACITY_MIN = 40
 export const SIDEBAR_BACKGROUND_OPACITY_MAX = 80
 export const SIDEBAR_WIDTH_MIN = 232
@@ -34,6 +37,93 @@ const SidebarBackgroundOpacity = Schema.Int.pipe(
     SIDEBAR_BACKGROUND_OPACITY_MAX
   )
 )
+
+export const LibraryLayout = Schema.Literal("masonry", "justified", "grid")
+export type LibraryLayout = typeof LibraryLayout.Type
+
+/**
+ * `speed` renders the stored preview; `quality` renders the original asset,
+ * which is sharper on a large thumbnail and heavier to load.
+ */
+export const ThumbnailQuality = Schema.Literal("speed", "quality")
+export type ThumbnailQuality = typeof ThumbnailQuality.Type
+
+export const ReferenceItemInfo = Schema.Literal(
+  "dimensions",
+  "size",
+  "type",
+  "date-added"
+)
+export type ReferenceItemInfo = typeof ReferenceItemInfo.Type
+
+export const LibraryColumnCount = Schema.Int.pipe(
+  Schema.between(LIBRARY_COLUMN_MIN, LIBRARY_COLUMN_MAX)
+)
+
+/** How the grid presents references. One document, so one popover owns it all. */
+export class LibraryViewPreferences extends Schema.Class<LibraryViewPreferences>(
+  "LibraryViewPreferences"
+)({
+  layout: LibraryLayout,
+  columns: LibraryColumnCount,
+  thumbnailQuality: ThumbnailQuality,
+  sort: ReferenceSortField,
+  sortDirection: ReferenceSortDirection,
+  showName: Schema.Boolean,
+  showItemInfo: Schema.Boolean,
+  itemInfo: ReferenceItemInfo,
+  showExtension: Schema.Boolean,
+  showExtensionLabel: Schema.Boolean,
+  showAnnotation: Schema.Boolean,
+  showSubfolderContents: Schema.Boolean,
+  showSidebar: Schema.Boolean,
+  showInspector: Schema.Boolean
+}) {}
+
+export const LibraryViewPreferencesPatch = Schema.partial(
+  Schema.Struct(LibraryViewPreferences.fields)
+)
+export type LibraryViewPreferencesPatch = typeof LibraryViewPreferencesPatch.Type
+
+export const DEFAULT_LIBRARY_VIEW_PREFERENCES = new LibraryViewPreferences({
+  layout: "masonry",
+  columns: 5,
+  thumbnailQuality: "speed",
+  sort: "date-added",
+  sortDirection: "desc",
+  showName: true,
+  showItemInfo: true,
+  itemInfo: "dimensions",
+  showExtension: true,
+  showExtensionLabel: true,
+  showAnnotation: false,
+  showSubfolderContents: true,
+  showSidebar: true,
+  showInspector: false
+})
+
+/** Field by field, so an explicit `undefined` reads as "unchanged", not "clear". */
+export const mergeLibraryViewPreferences = (
+  current: LibraryViewPreferences,
+  patch: LibraryViewPreferencesPatch
+) =>
+  new LibraryViewPreferences({
+    layout: patch.layout ?? current.layout,
+    columns: patch.columns ?? current.columns,
+    thumbnailQuality: patch.thumbnailQuality ?? current.thumbnailQuality,
+    sort: patch.sort ?? current.sort,
+    sortDirection: patch.sortDirection ?? current.sortDirection,
+    showName: patch.showName ?? current.showName,
+    showItemInfo: patch.showItemInfo ?? current.showItemInfo,
+    itemInfo: patch.itemInfo ?? current.itemInfo,
+    showExtension: patch.showExtension ?? current.showExtension,
+    showExtensionLabel: patch.showExtensionLabel ?? current.showExtensionLabel,
+    showAnnotation: patch.showAnnotation ?? current.showAnnotation,
+    showSubfolderContents:
+      patch.showSubfolderContents ?? current.showSubfolderContents,
+    showSidebar: patch.showSidebar ?? current.showSidebar,
+    showInspector: patch.showInspector ?? current.showInspector
+  })
 
 /**
  * A workspace id only means something relative to one library, so the resume
@@ -68,6 +158,7 @@ export class DesktopSettings extends Schema.Class<DesktopSettings>(
   activeEnvironmentId: EnvironmentId,
   workspaceSelections: WorkspaceSelections,
   activeSection: AppSection,
+  libraryView: LibraryViewPreferences,
   windowPlacement: Schema.NullOr(WindowPlacement)
 }) {}
 
@@ -85,6 +176,7 @@ export class UpdateDesktopSettings extends Schema.Class<UpdateDesktopSettings>(
   /** Applies to the environment the same patch selects, or the active one. */
   selectedWorkspaceId: Schema.optional(Schema.NullOr(WorkspaceId)),
   activeSection: Schema.optional(AppSection),
+  libraryView: Schema.optional(LibraryViewPreferencesPatch),
   windowPlacement: Schema.optional(Schema.NullOr(WindowPlacement))
 }) {}
 
@@ -114,6 +206,7 @@ export const DEFAULT_DESKTOP_SETTINGS = new DesktopSettings({
   activeEnvironmentId: LOCAL_ENVIRONMENT_ID,
   workspaceSelections: {},
   activeSection: "overview",
+  libraryView: DEFAULT_LIBRARY_VIEW_PREFERENCES,
   windowPlacement: null
 })
 
@@ -148,6 +241,10 @@ export const mergeDesktopSettings = (
     activeEnvironmentId,
     workspaceSelections,
     activeSection: patch.activeSection ?? current.activeSection,
+    libraryView:
+      patch.libraryView === undefined
+        ? current.libraryView
+        : mergeLibraryViewPreferences(current.libraryView, patch.libraryView),
     windowPlacement:
       patch.windowPlacement === undefined
         ? current.windowPlacement
@@ -171,6 +268,7 @@ const StoredDesktopSettings = Schema.Struct({
   activeEnvironmentId: Schema.optional(EnvironmentId),
   workspaceSelections: Schema.optional(WorkspaceSelections),
   activeSection: Schema.optional(AppSection),
+  libraryView: Schema.optional(LibraryViewPreferencesPatch),
   windowPlacement: Schema.optional(Schema.NullOr(WindowPlacement)),
   selectedWorkspaceId: Schema.optional(Schema.NullOr(WorkspaceId))
 })
@@ -213,6 +311,12 @@ export const decodeStoredDesktopSettings = (
       document.activeEnvironmentId ?? fallback.activeEnvironmentId,
     workspaceSelections: selections,
     activeSection: document.activeSection ?? fallback.activeSection,
+    // A document written before the view options existed still opens: every
+    // preference it does not name falls back to the documented default.
+    libraryView: mergeLibraryViewPreferences(
+      fallback.libraryView,
+      document.libraryView ?? {}
+    ),
     windowPlacement: document.windowPlacement ?? fallback.windowPlacement
   })
 }

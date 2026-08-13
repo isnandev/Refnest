@@ -1,5 +1,7 @@
 import {
   UpdateInspirationReference,
+  type LibraryViewPreferences,
+  type LibraryViewPreferencesPatch,
   type Workspace
 } from "@refnest/contracts"
 import { PanelRightClose, PanelRightOpen } from "lucide-react"
@@ -22,6 +24,8 @@ import { cn } from "@/lib/utils"
 import { BulkActionBar } from "./bulk-action-bar"
 import { CaptureToaster } from "./capture-toaster"
 import { FolderCreateDialog } from "./folder-create-dialog"
+import { ImportDropOverlay } from "./import-drop-overlay"
+import { ImportStatusPill } from "./import-status-pill"
 import { InspectorPanel } from "./inspector-panel"
 import { PRIMARY_FOLDERS } from "./library-data"
 import { LibrarySidebar } from "./library-sidebar"
@@ -40,6 +44,8 @@ export function ReferenceLibrary({
   theme,
   aiEnabled,
   libraryName,
+  view,
+  onViewChange,
   onLocalLibrary,
   onSelectWorkspace,
   onCreateWorkspace,
@@ -55,6 +61,8 @@ export function ReferenceLibrary({
   readonly theme: Theme
   readonly aiEnabled: boolean
   readonly libraryName: string | null
+  readonly view: LibraryViewPreferences
+  readonly onViewChange: (patch: LibraryViewPreferencesPatch) => void
   /**
    * Host-only affordances are hidden rather than left to fail: on a remote
    * library, workspace creation and local file import are absent from that
@@ -85,11 +93,9 @@ export function ReferenceLibrary({
     selection,
     selectedItems,
     searchQuery,
-    columns,
     filtersOpen,
+    viewOptionsOpen,
     activeFilter,
-    includeSubfolders,
-    inspectorOpen,
     mobileSidebarOpen,
     quickSaveOpen,
     folderCreateOpen,
@@ -97,6 +103,8 @@ export function ReferenceLibrary({
     library,
     quickSave,
     referenceImport,
+    referenceDrop,
+    referenceExport,
     collectionFolders,
     smartFolders,
     filterOptions,
@@ -106,10 +114,9 @@ export function ReferenceLibrary({
     assets,
     parentFolder,
     setSearchQuery,
-    setColumns,
     setFiltersOpen,
+    setViewOptionsOpen,
     setActiveFilter,
-    setIncludeSubfolders,
     setInspectorOpen,
     setMobileSidebarOpen,
     setQuickSaveOpen,
@@ -125,10 +132,21 @@ export function ReferenceLibrary({
     enrichActive,
     trashActive,
     restoreActive,
+    exportActive,
     favoriteSelected,
+    moveSelected,
+    rateSelected,
+    addTagsToSelected,
+    removeTagFromSelected,
     trashSelected,
     restoreSelected
-  } = useReferenceLibrary(workspaceId)
+  } = useReferenceLibrary({
+    workspaceId,
+    canImport: onLocalLibrary,
+    aiEnabled,
+    view,
+    onViewChange
+  })
   const converter = useImageConverter()
   const [convertOpen, setConvertOpen] = useState(false)
   const referencesError =
@@ -172,7 +190,10 @@ export function ReferenceLibrary({
         <div
           className={cn(
             "library-sidebar-drawer h-full shrink-0",
-            mobileSidebarOpen && "is-open"
+            mobileSidebarOpen && "is-open",
+            // Hidden on desktop when the view says so; the drawer still opens
+            // on a narrow window, which is the only way back to the folders.
+            !view.showSidebar && "min-[900px]:hidden"
           )}
           style={{ width: sidebar.width }}
         >
@@ -182,7 +203,7 @@ export function ReferenceLibrary({
             navigation={library.navigation}
             captureJobs={quickSave.state}
             importPending={referenceImport.pending}
-            importError={referenceImport.actionError}
+            addError={referenceImport.actionError ?? quickSave.actionError}
             primaryFolders={PRIMARY_FOLDERS}
             smartFolders={smartFolders}
             collectionFolders={collectionFolders}
@@ -209,7 +230,7 @@ export function ReferenceLibrary({
           onPointerUp={sidebar.endResize}
           onPointerCancel={sidebar.endResize}
           onKeyDown={sidebar.onDividerKeyDown}
-          className="hidden min-[900px]:block"
+          className={cn("hidden", view.showSidebar && "min-[900px]:block")}
         />
 
         {mobileSidebarOpen && (
@@ -232,20 +253,21 @@ export function ReferenceLibrary({
                 workspaceLabel={selectedWorkspace?.name ?? "Workspace"}
                 folderLabel={currentFolderLabel}
                 searchQuery={searchQuery}
-                columns={columns}
+                view={view}
+                viewOptionsOpen={viewOptionsOpen}
                 filterOpen={filtersOpen}
                 activeFilter={activeFilter}
                 filterOptions={filterOptions}
-                includeSubfolders={includeSubfolders}
                 canEnrich={activeItem !== null && aiEnabled}
                 actionPending={library.pending || referenceImport.pending}
                 onOpenSidebar={() => setMobileSidebarOpen(true)}
                 onOpenSearch={() => setCommandMenuOpen(true)}
                 onClearSearch={() => setSearchQuery("")}
-                onColumnsChange={setColumns}
+                onViewChange={onViewChange}
+                onViewOptionsOpenChange={setViewOptionsOpen}
+                onRefresh={() => void library.refresh()}
                 onFiltersOpenChange={setFiltersOpen}
                 onFilterChange={setActiveFilter}
-                onIncludeSubfoldersChange={setIncludeSubfolders}
                 onEnrich={() => void enrichActive()}
               />
               </>
@@ -255,12 +277,12 @@ export function ReferenceLibrary({
               type="button"
               variant="ghost"
               size="icon-sm"
-              aria-label={inspectorOpen ? "Hide details" : "Show details"}
-              title={inspectorOpen ? "Hide details" : "Show details"}
-              aria-expanded={inspectorOpen}
-              onClick={() => setInspectorOpen((open) => !open)}
+              aria-label={view.showInspector ? "Hide details" : "Show details"}
+              title={view.showInspector ? "Hide details" : "Show details"}
+              aria-expanded={view.showInspector}
+              onClick={() => setInspectorOpen(!view.showInspector)}
             >
-              {inspectorOpen ? (
+              {view.showInspector ? (
                 <PanelRightClose aria-hidden="true" />
               ) : (
                 <PanelRightOpen aria-hidden="true" />
@@ -279,7 +301,7 @@ export function ReferenceLibrary({
                 activeId={activeItem?.id ?? null}
                 selectedIds={selection.ids}
                 selectionMode={selection.active}
-                columns={columns}
+                view={view}
                 imageUrls={assets.urls}
                 failedImages={assets.failed}
                 loading={
@@ -301,10 +323,10 @@ export function ReferenceLibrary({
             <div
               className={cn(
                 "library-inspector-column h-full shrink-0 overflow-hidden",
-                !inspectorOpen && "is-collapsed"
+                !view.showInspector && "is-collapsed"
               )}
-              aria-hidden={!inspectorOpen}
-              inert={!inspectorOpen}
+              aria-hidden={!view.showInspector}
+              inert={!view.showInspector}
             >
               <InspectorPanel
                 item={activeItem}
@@ -314,14 +336,20 @@ export function ReferenceLibrary({
                 imageFailed={
                   activeItem !== null && assets.failed.has(activeItem.id)
                 }
+                folders={collectionFolders}
                 folderLabel={currentFolderLabel}
                 itemCount={currentFolderCount}
                 canEnrich={aiEnabled}
                 pending={
-                  library.pending || referenceImport.pending || converter.pending
+                  library.pending ||
+                  referenceImport.pending ||
+                  referenceExport.pending ||
+                  converter.pending
                 }
                 actionError={
-                  referenceImport.actionError ?? library.actionError
+                  referenceExport.actionError ??
+                  referenceImport.actionError ??
+                  library.actionError
                 }
                 onClose={() => setInspectorOpen(false)}
                 onEditMetadata={updateActive}
@@ -338,6 +366,10 @@ export function ReferenceLibrary({
                 onEnrich={() => void enrichActive()}
                 canConvert={onLocalLibrary}
                 onConvert={openConvert}
+                onExport={() => {
+                  referenceExport.clearActionError()
+                  void exportActive()
+                }}
                 onOpenSource={() => {
                   if (activeItem !== null && activeItem.source !== "local-file") {
                     void openReferenceSource(activeItem.sourceUrl)
@@ -368,15 +400,39 @@ export function ReferenceLibrary({
         }}
       />
 
-      <BulkActionBar
-        items={selectedItems}
-        allVisibleSelected={selection.allVisibleSelected}
-        pending={library.pending}
-        onSelectAll={selection.selectAll}
-        onClear={selection.clear}
-        onFavorite={(favorite) => void favoriteSelected(favorite)}
-        onTrash={() => void trashSelected()}
-        onRestore={() => void restoreSelected()}
+      {/*
+        Both floating bars share one bottom stack, so an import that starts
+        while a selection is open sits above the bulk bar instead of over it.
+      */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex flex-col items-center gap-2 px-4">
+        <ImportStatusPill
+          pending={referenceImport.pending}
+          count={referenceImport.pendingCount}
+        />
+
+        <BulkActionBar
+          items={selectedItems}
+          folders={collectionFolders}
+          allVisibleSelected={selection.allVisibleSelected}
+          pending={library.pending}
+          onSelectAll={selection.selectAll}
+          onClear={selection.clear}
+          onFavorite={(favorite) => void favoriteSelected(favorite)}
+          onMove={(folderId) => void moveSelected(folderId)}
+          onAddTags={(value) => void addTagsToSelected(value)}
+          onRemoveTag={(tag) => void removeTagFromSelected(tag)}
+          onRate={(rating) => void rateSelected(rating)}
+          onTrash={() => void trashSelected()}
+          onRestore={() => void restoreSelected()}
+        />
+      </div>
+
+      <ImportDropOverlay
+        state={referenceDrop}
+        canImport={onLocalLibrary}
+        destinationLabel={
+          parentFolder?.label ?? selectedWorkspace?.name ?? "this workspace"
+        }
       />
 
       <CaptureToaster

@@ -84,6 +84,114 @@ describe("local reference import over HTTP", () => {
     )
   })
 
+  it("keeps pasted bytes as a reference, named by the clipboard", async () => {
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const { handler } = yield* webHandler
+          const workspaceResponse = yield* Effect.promise(() =>
+            handler(jsonRequest("GET", "/workspaces"))
+          )
+          const workspace = (
+            yield* decodeJson(Schema.Array(Workspace), workspaceResponse)
+          )[0]
+          if (workspace === undefined) {
+            return yield* Effect.dieMessage("Missing default workspace")
+          }
+
+          const pastedResponse = yield* Effect.promise(() =>
+            handler(
+              jsonRequest("POST", "/references/paste", {
+                workspaceId: workspace.id,
+                folderId: null,
+                name: "Clipboard shot.png",
+                bytes: Buffer.from(PNG_BYTES).toString("base64")
+              })
+            )
+          )
+          expect(pastedResponse.status).toBe(201)
+          const pasted = yield* decodeJson(InspirationReference, pastedResponse)
+          expect(pasted).toMatchObject({
+            workspaceId: workspace.id,
+            folderId: null,
+            title: "Clipboard shot",
+            source: "local-file",
+            kind: "image",
+            mimeType: "image/png",
+            fileSizeBytes: PNG_BYTES.byteLength,
+            // The clipboard is not a file, so it carries no dates of its own.
+            fileCreatedAt: null,
+            fileModifiedAt: null
+          })
+
+          const assetResponse = yield* Effect.promise(() =>
+            handler(jsonRequest("GET", pasted.assetUrl))
+          )
+          expect(assetResponse.status).toBe(200)
+          expect(
+            new Uint8Array(yield* Effect.promise(() => assetResponse.arrayBuffer()))
+          ).toStrictEqual(PNG_BYTES)
+
+          const unnamedResponse = yield* Effect.promise(() =>
+            handler(
+              jsonRequest("POST", "/references/paste", {
+                workspaceId: workspace.id,
+                folderId: null,
+                bytes: Buffer.from(PNG_BYTES).toString("base64")
+              })
+            )
+          )
+          expect(unnamedResponse.status).toBe(201)
+          expect(
+            (yield* decodeJson(InspirationReference, unnamedResponse)).title
+          ).toBe("Pasted image")
+        })
+      )
+    )
+  })
+
+  it("refuses pasted bytes that are not media, and empty ones", async () => {
+    await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const { handler } = yield* webHandler
+          const workspaceResponse = yield* Effect.promise(() =>
+            handler(jsonRequest("GET", "/workspaces"))
+          )
+          const workspace = (
+            yield* decodeJson(Schema.Array(Workspace), workspaceResponse)
+          )[0]
+          if (workspace === undefined) {
+            return yield* Effect.dieMessage("Missing default workspace")
+          }
+
+          for (const bytes of [
+            Buffer.from("not media").toString("base64"),
+            ""
+          ]) {
+            const response = yield* Effect.promise(() =>
+              handler(
+                jsonRequest("POST", "/references/paste", {
+                  workspaceId: workspace.id,
+                  folderId: null,
+                  bytes
+                })
+              )
+            )
+            expect(response.status).toBe(400)
+          }
+
+          const listedResponse = yield* Effect.promise(() =>
+            handler(jsonRequest("GET", `/references?workspaceId=${workspace.id}`))
+          )
+          expect(
+            yield* decodeJson(Schema.Array(InspirationReference), listedResponse)
+          ).toHaveLength(0)
+        })
+      )
+    )
+  })
+
   it("rejects missing and unsupported local files without creating references", async () => {
     await Effect.runPromise(
       Effect.scoped(

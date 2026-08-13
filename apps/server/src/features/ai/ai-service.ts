@@ -64,7 +64,9 @@ const makeAiService = Effect.gen(function* () {
         sourceUrl: reference.sourceUrl,
         source: reference.source,
         kind: reference.kind,
+        assetPath: reference.assetPath,
         previewPath: reference.previewPath,
+        mimeType: reference.mimeType,
         folders: workspaceFolders.map((folder) => ({
           id: folder.id,
           name: folder.name

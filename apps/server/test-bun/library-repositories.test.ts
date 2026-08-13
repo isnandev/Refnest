@@ -128,7 +128,9 @@ describe("library repositories", () => {
               durationSeconds: null,
               fileSizeBytes: 14,
               tags: ["Dark", "dark", "Editorial"],
-              colors: ["#0e0e0e"]
+              colors: ["#0e0e0e"],
+              fileCreatedAt: null,
+              fileModifiedAt: null
             })
 
             expect(createdReference.tags).toStrictEqual(["Dark", "Editorial"])

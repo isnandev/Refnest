@@ -2,7 +2,6 @@ import type { Workspace } from "@refnest/contracts"
 import {
   Bell,
   FolderPlus,
-  Library,
   Link2,
   LoaderCircle,
   Plus,
@@ -33,7 +32,7 @@ export function LibrarySidebar({
   navigation,
   captureJobs,
   importPending,
-  importError,
+  addError,
   primaryFolders,
   smartFolders,
   collectionFolders,
@@ -55,7 +54,8 @@ export function LibrarySidebar({
   readonly navigation: LibraryNavigationState
   readonly captureJobs: CaptureJobsState
   readonly importPending: boolean
-  readonly importError: string | null
+  /** Whatever last failed while adding to the library — an import or a capture. */
+  readonly addError: string | null
   readonly primaryFolders: readonly LibraryFolder[]
   readonly smartFolders: readonly LibraryFolder[]
   readonly collectionFolders: readonly LibraryFolder[]
@@ -86,9 +86,13 @@ export function LibrarySidebar({
       className="library-sidebar relative z-30 flex h-full min-h-0 w-full shrink-0 flex-col bg-surface"
     >
       <div className="flex h-[52px] shrink-0 items-center gap-2 px-3">
-        <div className="flex size-8 items-center justify-center rounded-sm border bg-surface-muted">
-          <Library className="size-4" aria-hidden="true" />
-        </div>
+        <img
+          src="/refnest-logo.png"
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="size-8 shrink-0 rounded-sm"
+        />
         <span className="min-w-0 flex-1 truncate text-label text-foreground">
           RefNest
         </span>
@@ -231,6 +235,9 @@ export function LibrarySidebar({
               >
                 <Link2 className="size-4" aria-hidden="true" />
                 Capture a website…
+                <span className="ml-auto text-caption text-muted-foreground">
+                  Ctrl+V
+                </span>
               </button>
               <button
                 type="button"
@@ -259,12 +266,12 @@ export function LibrarySidebar({
         />
       </div>
 
-      {importError !== null && (
+      {addError !== null && (
         <p
           role="alert"
           className="mx-3 mb-3 line-clamp-3 rounded-sm bg-danger-container p-2.5 text-caption text-danger"
         >
-          {importError}
+          {addError}
         </p>
       )}
 

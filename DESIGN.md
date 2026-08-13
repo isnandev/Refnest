@@ -112,18 +112,94 @@ following product-level direction:
   in place of the toolbar, so the references stay where the user left them.
   `Esc` clears, `Ctrl/Cmd+A` takes everything the current view lists, and a
   double-click still opens one reference without spending the selection.
-- **Metadata is edited where it is read.** Title, description, and tags in the
+- **A drop is an import, and it says where it lands.** Files dragged onto the
+  window import into the folder currently being viewed — the same destination
+  the sidebar's `Import files…` uses, so the two entrances cannot disagree. The
+  drop is handled natively by the webview, so the overlay never takes the
+  pointer; it only states the count, the destination, and what is being skipped.
+  A drop that carries nothing importable, or that lands on a library hosted by
+  another machine, says so instead of failing quietly, and the run reports
+  itself in a pill beside the bulk bar because an import of twenty files is
+  otherwise invisible from the grid.
+- **Paste adds whatever the clipboard is holding.** `Ctrl/Cmd+V` anywhere in the
+  library reads the clipboard: content becomes an import, a link becomes a
+  capture, and both land in the folder being viewed — the same destination a
+  drop or the menu's own action uses. Content wins when both are present,
+  because a file copied out of the file manager also carries its path as text
+  and the bytes are the better answer of the two. The capture toast and the
+  import pill are the confirmation, so the dialog is for links that need the AI
+  toggle changed rather than for every link. Only a whole `http(s)` URL counts
+  as a link: a paste of prose, a file path, or anything inside a field belongs
+  to the surface it landed in and does nothing here. A repeat of the same link
+  within two seconds is read as the habit of checking whether the first one
+  took, not as a request for a second copy.
+- **Pasted content travels as bytes; dropped files never do.** The clipboard
+  holds content rather than a path, so paste is the one import that puts the
+  file on the wire — capped well below what the desktop's IPC hop should carry,
+  with anything larger sent back to drag-and-drop, which the sidecar reads from
+  disk. The sidecar trusts none of it: the header decides the type, the
+  extension, and whether the library keeps it, exactly as it does for a picked
+  file. Both doors run the same containment, verification, and cleanup, because
+  a second copy of that code is a second place for it to be wrong.
+- **A bulk action either needs an argument or it does not.** Favourite, trash,
+  restore, select-all, and clear act on the click; move, tag, and rate open a
+  small panel above the bar to take the one thing they need. Tagging adds to
+  what each reference already carries rather than replacing it, and lists the
+  tags in play with the share of the selection holding each, since removing a
+  tag from three of twelve is a different act from removing it from all twelve.
+  A trashed reference is read-only in the inspector, so a selection holding one
+  disables the three editors rather than half-applying them.
+- **Metadata is edited where it is read.** Title, notes, link, and tags in the
   inspector become their own field on double-click — the rename gesture from the
   file manager next to this app — and a keyboard activation opens the same
   editor, since a keyboard cannot double-click. `Enter` saves, `Esc` cancels,
   and the field states the rule it broke beneath itself instead of turning red.
-  Only the three fields the reference contract accepts are editable; dimensions,
-  size, type, and origin are facts, so they stay read-only.
+  They rest in a bordered box so the panel reads as a form without behaving like
+  one; dimensions, size, type, and the dates stay read-only, because they are
+  facts about the file rather than opinions about it.
 - **Zoom counts columns, not pixels.** The control runs from eight columns down
-  to one and reads out the count, and the masonry now honours each reference's
-  real proportions instead of flattening them toward a square. The layout toggle
-  is gone with it: masonry was the only view, so a permanently pressed button
-  said nothing.
+  to one and reads out the count, and every layout honours each reference's real
+  proportions instead of flattening them toward a square. Under justified the
+  same number sets the row height, so one control means the same thing in all
+  three layouts.
+- **How the grid reads lives in one popover; what it shows lives in another.**
+  Layout, thumbnail quality, sort, columns, and the caption toggles sit together
+  under the view control, and tag filtering keeps its own funnel next door.
+  Mixing them would put "which references am I looking at" and "how big are
+  they" in the same menu. Every one of these is a saved preference, so the
+  library opens the way it was left; they travel in the same `DesktopSettings`
+  document as theme and window bounds.
+- **Three layouts, each earning its place.** Masonry keeps the columns even and
+  lets height run; justified fills each row to both edges at one height, the way
+  a contact sheet reads; grid crops to a square when the collection matters more
+  than any single image. A layout that only ever had one option is a label, not
+  a control — which is why this dropdown arrived with the other two.
+- **Thumbnail quality names what it costs.** `Speed` renders the stored preview,
+  which the library already built; `Quality` renders the original for images,
+  which is sharper on a large tile and heavier to load. A video or PDF has no
+  original a browser would draw, so it keeps its preview under both.
+- **A rating is a mark, and zero is unrated.** Five stars, filled in lime as a
+  mark rather than a fill that carries text, and clicking the star a reference
+  already holds clears it — otherwise a rating could be raised but never taken
+  back. Shape carries the state as well as colour: filled against outlined.
+- **Three dates, because they are three different facts.** `Date Imported` is
+  when this library first saw the reference. `Date Created` and `Date Modified`
+  are the source file's own, read from disk at import and stored beside the
+  library's. A web capture never was a file, so both read `Unknown` rather than
+  borrowing the import time and pretending.
+- **Export copies; it never moves.** The sidecar writes the copy because it is
+  the process that can read the library's files, and the dialog only supplies
+  the path. The endpoint is host-only for the same reason local import is: a
+  destination path means nothing to a paired device.
+- **Sorting happens in the sidecar, over the whole result.** The list endpoint
+  takes a field and a direction and returns them applied, so paging, search, and
+  smart folders all agree on the order. Ties fall back to import order and then
+  to the id, so an unchanged library never reshuffles under the user.
+- **The close button wears `danger` permanently.** Minimise and maximise stay
+  quiet and fill only on hover; closing is the one control that ends the session,
+  so it carries the documented danger token at rest instead of waiting for a
+  pointer to explain itself. The three sit as rounded controls on the canvas
+  rather than as a system-style strip, matching the rest of the chrome.
 - **Fonts fall back to the system stack.** Inter and JetBrains Mono are named
   first, but no font files are bundled and the app's CSP (`default-src 'self'`)
   blocks remote font loading. Add the files under `apps/desktop/public` and an

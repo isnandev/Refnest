@@ -209,7 +209,11 @@ const makeImageConverter = Effect.gen(function* () {
           durationSeconds: null,
           fileSizeBytes: converted.bytes.byteLength,
           tags: source.tags,
-          colors: source.colors
+          colors: source.colors,
+          // The conversion writes a new file; the original's dates describe a
+          // different one.
+          fileCreatedAt: null,
+          fileModifiedAt: null
         })
       })
 

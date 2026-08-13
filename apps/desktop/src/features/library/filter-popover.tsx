@@ -8,18 +8,14 @@ export function FilterPopover({
   open,
   filters,
   activeFilter,
-  includeSubfolders,
   onOpenChange,
-  onFilterChange,
-  onIncludeSubfoldersChange
+  onFilterChange
 }: {
   open: boolean
   filters: readonly string[]
   activeFilter: string
-  includeSubfolders: boolean
   onOpenChange: (open: boolean) => void
   onFilterChange: (filter: string) => void
-  onIncludeSubfoldersChange: (include: boolean) => void
 }) {
   return (
     <Popover.Root open={open} onOpenChange={onOpenChange}>
@@ -89,18 +85,6 @@ export function FilterPopover({
               })}
             </div>
           </fieldset>
-
-          <label className="mt-3 flex min-h-9 cursor-pointer items-center gap-2 border-t pt-3 text-caption text-muted-foreground hover:text-foreground">
-            <input
-              type="checkbox"
-              checked={includeSubfolders}
-              onChange={(event) =>
-                onIncludeSubfoldersChange(event.currentTarget.checked)
-              }
-              className="size-3.5 accent-[var(--text-primary)]"
-            />
-            Show subfolders
-          </label>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
