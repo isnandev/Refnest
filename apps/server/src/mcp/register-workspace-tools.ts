@@ -14,7 +14,7 @@ import {
 } from "./mcp-schemas"
 import type { RefNestMcpServices } from "./mcp-services"
 
-export const registerWorkspaceTools = (
+export const registerWorkspaceReadTools = (
   server: McpServer,
   services: RefNestMcpServices
 ) => {
@@ -36,7 +36,12 @@ export const registerWorkspaceTools = (
         }
       })
   )
+}
 
+export const registerWorkspaceAdminTools = (
+  server: McpServer,
+  services: RefNestMcpServices
+) => {
   registerRefNestTool(
     server,
     "refnest_create_workspace",

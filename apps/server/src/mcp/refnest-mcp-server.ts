@@ -3,14 +3,21 @@ import { SERVER_VERSION } from "../version"
 import { REFNEST_MCP_PROTOCOL_VERSION } from "./mcp-constants"
 import type { RefNestMcpServices } from "./mcp-services"
 import { registerFolderTools } from "./register-folder-tools"
-import { registerOperationTools } from "./register-operation-tools"
+import {
+  registerAiEnrichmentTools,
+  registerAiSettingsTools,
+  registerQuickSaveTools
+} from "./register-operation-tools"
 import { registerReferenceTools } from "./register-reference-tools"
 import { registerRefNestResources } from "./register-resources"
 import { registerSmartFolderTools } from "./register-smart-folder-tools"
-import { registerWorkspaceTools } from "./register-workspace-tools"
+import {
+  registerWorkspaceAdminTools,
+  registerWorkspaceReadTools
+} from "./register-workspace-tools"
 
-export const createRefNestMcpServer = (services: RefNestMcpServices) => {
-  const server = new McpServer(
+const createServer = () =>
+  new McpServer(
     { name: "refnest", version: SERVER_VERSION },
     {
       supportedProtocolVersions: [REFNEST_MCP_PROTOCOL_VERSION],
@@ -19,12 +26,41 @@ export const createRefNestMcpServer = (services: RefNestMcpServices) => {
     }
   )
 
-  registerWorkspaceTools(server, services)
+const registerSharedSurface = (
+  server: McpServer,
+  services: RefNestMcpServices
+) => {
+  registerWorkspaceReadTools(server, services)
   registerFolderTools(server, services)
   registerSmartFolderTools(server, services)
   registerReferenceTools(server, services)
-  registerOperationTools(server, services)
+  registerQuickSaveTools(server, services)
+  registerAiEnrichmentTools(server, services)
   registerRefNestResources(server, services)
+}
+
+export const createRefNestMcpServer = (services: RefNestMcpServices) => {
+  const server = createServer()
+
+  registerWorkspaceReadTools(server, services)
+  registerWorkspaceAdminTools(server, services)
+  registerFolderTools(server, services)
+  registerSmartFolderTools(server, services)
+  registerReferenceTools(server, services)
+  registerQuickSaveTools(server, services)
+  registerAiSettingsTools(server, services)
+  registerAiEnrichmentTools(server, services)
+  registerRefNestResources(server, services)
+
+  return server
+}
+
+export const createRefNestSharedMcpServer = (
+  services: RefNestMcpServices
+) => {
+  const server = createServer()
+
+  registerSharedSurface(server, services)
 
   return server
 }
@@ -33,3 +69,7 @@ export const createRefNestMcpServer = (services: RefNestMcpServices) => {
 export const makeRefNestMcpServerFactory = (
   services: RefNestMcpServices
 ): McpServerFactory => () => createRefNestMcpServer(services)
+
+export const makeRefNestSharedMcpServerFactory = (
+  services: RefNestMcpServices
+): McpServerFactory => () => createRefNestSharedMcpServer(services)

@@ -72,8 +72,8 @@ pub fn sidecar_ready(sidecar: State<'_, Sidecar>) -> bool {
     sidecar.is_ready()
 }
 
-/// Reveals the ephemeral MCP credential only after the Settings UI explicitly
-/// requests it. Ordinary webview traffic continues through the opaque proxy.
+/// Reveals the ephemeral local MCP credential only after the Settings UI
+/// explicitly requests it. The local endpoint follows the active library.
 #[tauri::command]
 pub async fn mcp_connection_info(sidecar: State<'_, Sidecar>) -> Result<McpConnectionInfo, String> {
     Ok(mcp_connection(sidecar.endpoint().await?))

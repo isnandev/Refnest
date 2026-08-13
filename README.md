@@ -95,14 +95,16 @@ the local sidecar over loopback, so it never reaches the webview.
 ## MCP access
 
 RefNest exposes MCP protocol `2025-11-25` at `POST /mcp` on the same loopback
-sidecar. It uses the same required bearer token as the REST API and the same live
-Effect service graph and SQLite owner, so desktop and MCP clients can operate at
-the same time. There is no unauthenticated MCP listener.
+sidecar. It uses the same required bearer token as the REST API. For the local
+library it shares the live Effect service graph and SQLite owner; for an active
+remote library it forwards to that host's paired, reduced MCP surface. There is
+no unauthenticated MCP listener.
 
 In the desktop app, open **Settings → MCP access → Show connection** to reveal
-and copy the current Streamable HTTP URL and authorization header. These
-credentials are generated for the running app session and change after RefNest
-restarts.
+and copy the current Streamable HTTP URL and authorization header. This local
+endpoint follows the library currently open in RefNest, including a paired
+remote library, without revealing that library's paired-device credential.
+The local credentials change after RefNest restarts.
 
 For an HTTP MCP client, start RefNest with an explicit loopback port and token so
 the client has stable connection settings:
@@ -140,7 +142,8 @@ loopback `/mcp` URL, and exits when its input closes. RefNest must already be
 running. The desktop's default port and token are random per launch, so external
 clients need the explicit stable settings above; automatic credential discovery
 is intentionally not provided. Protect any client configuration containing the
-token because it grants full control of the local RefNest library.
+token because it grants control of whichever RefNest library is active through
+this device.
 
 MCP workspace creation is restricted to RefNest's managed workspace root. Every
 tool operation is workspace-scoped, destructive tools require `confirm:true`,
@@ -163,6 +166,10 @@ refnest_list_capture_jobs     refnest_get_capture_job
 refnest_get_ai_settings       refnest_update_ai_settings
 refnest_enrich_reference
 ```
+
+A paired remote library omits the host-only
+`refnest_create_workspace`, `refnest_get_ai_settings`, and
+`refnest_update_ai_settings` tools.
 
 Resources use `refnest://workspace/{workspaceId}`,
 `refnest://workspace/{workspaceId}/folders`,
@@ -251,8 +258,9 @@ offline mode.
 Sharing is off until you turn it on in Settings. Enabling it starts a second
 listener (`0.0.0.0:4317` by default) that serves a deliberately smaller
 contract — no workspace administration, no local file import, no AI provider
-settings, no desktop settings, no MCP. Those groups are absent from the shared
-contract rather than blocked by a check.
+settings, and no desktop settings. Its MCP endpoint follows the same boundary:
+remote clients can browse and edit library content but cannot use host-only
+tools.
 
 A second device is added with a code: the host shows an eight-character pairing
 code that expires in five minutes and can be redeemed once, and the device that

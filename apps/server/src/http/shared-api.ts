@@ -23,6 +23,7 @@ import { SharedSmartFoldersHttpLive } from "../features/smart-folders/smart-fold
 import { WorkspaceRepository } from "../features/workspaces/workspace-repository"
 import { SharedWorkspacesHttpLive } from "../features/workspaces/workspaces-http"
 import type { ShareBranch } from "../features/sharing/share-listener"
+import { SharedMcpHttpLive } from "../mcp/mcp-http"
 import { withSharedAuth } from "./shared-auth"
 
 /**
@@ -67,8 +68,9 @@ export const pickSharedApiServices = Context.pick(
 
 /**
  * The LAN contract. Workspace administration, local import, AI settings,
- * desktop settings, environments, sharing, and MCP are absent here rather than
+ * desktop settings, environments, and sharing are absent here rather than
  * denied, so a remote device cannot reach them even if the middleware is wrong.
+ * MCP is composed separately with only the tools backed by this same surface.
  */
 export const SharedContractApiLive = HttpApiBuilder.api(RefNestSharedApi).pipe(
   Layer.provide(SharedAiEnrichHttpLive),
@@ -82,6 +84,8 @@ export const SharedContractApiLive = HttpApiBuilder.api(RefNestSharedApi).pipe(
   Layer.provide(SharedSmartFoldersHttpLive),
   Layer.provide(SharedWorkspacesHttpLive)
 )
+
+const SharedApiLive = Layer.merge(SharedContractApiLive, SharedMcpHttpLive)
 
 /**
  * Builds one run of the LAN listener.
@@ -114,7 +118,7 @@ export const makeShareBranch = (
     ).pipe(
       Layer.provide(
         HttpApiBuilder.serve(withSharedAuth).pipe(
-          Layer.provide(SharedContractApiLive),
+          Layer.provide(SharedApiLive),
           Layer.provide(Layer.succeedContext(services)),
           Layer.provideMerge(BunHttpServer.layer({ hostname, port }))
         )

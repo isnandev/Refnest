@@ -112,8 +112,9 @@ This splits three existing groups in `packages/contracts/src/api.ts`:
 | `aiGroup` | `aiEnrichGroup` (enrichReference) | yes — uses the host's key, the client never sees it |
 | | `aiSettingsGroup` (get, update) | **no** |
 
-Never shared, additionally: `settingsGroup`, `environmentsGroup`,
-`sharingGroup`, and `POST /mcp`.
+Never shared, additionally: `settingsGroup`, `environmentsGroup`, and
+`sharingGroup`. `POST /mcp` is mounted separately with only tools backed by
+the shared groups; workspace creation and AI settings tools are absent.
 
 `RefNestSharedApi` = health + notes + workspaces(list) + folders + references +
 assets + smartFolders + quickSave + aiEnrich + pairing.
@@ -267,7 +268,8 @@ the host's Chromium and `yt-dlp` do the work, with the job already persisted and
 pollable. AI enrichment likewise runs against the host's key.
 
 **Host-only, hidden in remote UI:** workspace creation, the folder explorer,
-local file import, AI provider settings, MCP.
+local file import, and AI provider settings. Remote MCP follows that same
+reduced surface.
 
 **Device-local always, routed to the local sidecar even when a remote is
 active:** `GET`/`PATCH /settings`. Window bounds, sidebar width, theme, and the

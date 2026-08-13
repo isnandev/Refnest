@@ -36,7 +36,7 @@ export function McpSettingsSection() {
       <SettingRow
         icon={Cable}
         title="Local MCP server"
-        description="Connect an MCP-compatible assistant to the library stored on this device. The authenticated endpoint is available only while RefNest is open."
+        description="Connect an MCP-compatible assistant to the library currently open in RefNest. This local endpoint follows the active library while RefNest is open."
       >
         {mcp.state.status === "hidden" ? (
           <Button type="button" variant="outline" size="sm" onClick={() => void mcp.reveal()}>
@@ -72,8 +72,9 @@ export function McpSettingsSection() {
         <div className="grid gap-4 border-t p-5">
           <p className="flex items-start gap-2 rounded-sm bg-danger-container p-3 text-body-sm text-danger">
             <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            Anyone with this token can control your local library. Treat it like
-            a password; RefNest replaces it whenever the app restarts.
+            Anyone with this token can control the active library through this
+            device. Treat it like a password; RefNest replaces it whenever the
+            app restarts.
           </p>
 
           <div className="grid gap-1.5">

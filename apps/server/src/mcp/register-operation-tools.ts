@@ -35,7 +35,7 @@ import {
 } from "./mcp-schemas"
 import type { RefNestMcpServices } from "./mcp-services"
 
-export const registerOperationTools = (
+export const registerQuickSaveTools = (
   server: McpServer,
   services: RefNestMcpServices
 ) => {
@@ -99,7 +99,12 @@ export const registerOperationTools = (
         (job) => ({ job: presentCaptureJob(job) })
       )
   )
+}
 
+export const registerAiSettingsTools = (
+  server: McpServer,
+  services: RefNestMcpServices
+) => {
   registerRefNestTool(
     server,
     "refnest_get_ai_settings",
@@ -137,7 +142,12 @@ export const registerOperationTools = (
         (settings) => ({ settings: presentAiSettings(settings) })
       )
   )
+}
 
+export const registerAiEnrichmentTools = (
+  server: McpServer,
+  services: RefNestMcpServices
+) => {
   registerRefNestTool(
     server,
     "refnest_enrich_reference",
