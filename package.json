@@ -2,7 +2,7 @@
   "name": "refnest",
   "private": true,
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev": "bun run sidecar:build && bun run --filter @refnest/desktop tauri:dev",
