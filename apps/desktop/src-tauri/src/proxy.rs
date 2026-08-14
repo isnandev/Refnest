@@ -59,6 +59,31 @@ impl ApiProxy {
         endpoint: &Endpoint,
         request: ApiRequest,
     ) -> Result<ApiResponse, String> {
+        self.forward_with_limit(endpoint, request, None).await
+    }
+
+    /// Forwards a response while stopping before an untrusted peer can buffer
+    /// more than the caller's boundary permits.
+    pub async fn forward_bounded(
+        &self,
+        endpoint: &Endpoint,
+        request: ApiRequest,
+        max_response_bytes: usize,
+    ) -> Result<ApiResponse, String> {
+        if max_response_bytes == 0 {
+            return Err("the response byte limit must be positive".to_string());
+        }
+
+        self.forward_with_limit(endpoint, request, Some(max_response_bytes))
+            .await
+    }
+
+    async fn forward_with_limit(
+        &self,
+        endpoint: &Endpoint,
+        request: ApiRequest,
+        max_response_bytes: Option<usize>,
+    ) -> Result<ApiResponse, String> {
         let method = parse_method(&request.method)?;
         let url = resolve_url(&endpoint.base_url, &request.path)?;
 
@@ -77,10 +102,16 @@ impl ApiProxy {
             outgoing = outgoing.body(body);
         }
 
-        let response = outgoing
+        let mut response = outgoing
             .send()
             .await
             .map_err(|error| format!("the sidecar did not answer: {error}"))?;
+
+        if let (Some(limit), Some(length)) = (max_response_bytes, response.content_length()) {
+            if length > limit as u64 {
+                return Err("the sidecar response exceeded its byte limit".to_string());
+            }
+        }
 
         let status = response.status().as_u16();
         let headers = response
@@ -93,11 +124,21 @@ impl ApiProxy {
                     .map(|value| (name.as_str().to_string(), value.to_string()))
             })
             .collect();
-        let body = response
-            .bytes()
+        let mut body = Vec::new();
+        while let Some(chunk) = response
+            .chunk()
             .await
             .map_err(|error| format!("could not read the sidecar response: {error}"))?
-            .to_vec();
+        {
+            let next_length = body
+                .len()
+                .checked_add(chunk.len())
+                .ok_or_else(|| "the sidecar response size overflowed".to_string())?;
+            if max_response_bytes.is_some_and(|limit| next_length > limit) {
+                return Err("the sidecar response exceeded its byte limit".to_string());
+            }
+            body.extend_from_slice(&chunk);
+        }
 
         Ok(ApiResponse {
             status,

@@ -9,9 +9,12 @@ import {
 import { describe, expect, it } from "vitest"
 
 import {
-  referenceImagePath,
-  referenceVideoPath
+  referenceImagePath
 } from "@/features/library/use-reference-assets"
+import {
+  referenceVideoPath,
+  referenceVideoUrl
+} from "@/features/library/reference-video-source"
 
 describe("library view preferences", () => {
   it("merges one toggle without disturbing the rest of the document", () => {
@@ -113,5 +116,17 @@ describe("thumbnail quality", () => {
       })
     ).toBeNull()
     expect(referenceVideoPath(null)).toBeNull()
+  })
+
+  it("gives the video element a media-protocol URL instead of buffered bytes", () => {
+    const converted: Array<readonly [string, string | undefined]> = []
+    const url = referenceVideoUrl("/asset", (path, protocol) => {
+      converted.push([path, protocol])
+      return `stream:${path}`
+    })
+
+    expect(url).toBe("stream:/asset")
+    expect(converted).toStrictEqual([["/asset", "refnest-media"]])
+    expect(referenceVideoUrl(null, () => "unused")).toBeUndefined()
   })
 })

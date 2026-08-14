@@ -26,7 +26,7 @@ export function ReferenceVideoPlayer({
         autoPlay
         muted
         playsInline
-        preload="auto"
+        preload="metadata"
         className="size-full bg-surface-inverse object-contain object-center"
         onError={() => setFailedUrl(url)}
       >
