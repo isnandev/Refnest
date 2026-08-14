@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
 
 import {
+  clampViewerPan,
   ReferenceViewer,
   zoomReferenceFromWheel
 } from "@/features/library/reference-viewer"
@@ -46,13 +47,13 @@ describe("reference viewer zoom", () => {
         total: 1,
         onOpenChange: () => undefined,
         onPrevious: () => undefined,
-        onNext: () => undefined,
-        onShowDetails: () => undefined
+        onNext: () => undefined
       })
     )
 
     expect(markup).toContain('aria-label="Reference viewer"')
     expect(markup).not.toContain('role="dialog"')
+    expect(markup).not.toContain("Details")
   })
 
   it("keeps the closed viewer inert while its inline surface exits", () => {
@@ -68,13 +69,18 @@ describe("reference viewer zoom", () => {
         total: 1,
         onOpenChange: () => undefined,
         onPrevious: () => undefined,
-        onNext: () => undefined,
-        onShowDetails: () => undefined
+        onNext: () => undefined
       })
     )
 
     expect(markup).toContain('aria-hidden="true"')
     expect(markup).toContain('inert=""')
     expect(markup).not.toContain("is-open")
+  })
+
+  it("keeps a zoomed image inside the stage while panning", () => {
+    expect(clampViewerPan(400, 300, 1, 800, 600)).toEqual({ x: 0, y: 0 })
+    expect(clampViewerPan(400, 300, 2, 800, 600)).toEqual({ x: 400, y: 300 })
+    expect(clampViewerPan(900, -900, 2, 800, 600)).toEqual({ x: 400, y: -300 })
   })
 })

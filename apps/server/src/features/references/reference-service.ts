@@ -395,7 +395,11 @@ const makeReferenceService = Effect.gen(function* () {
         query.length === 0 ||
         reference.title.toLocaleLowerCase().includes(query) ||
         reference.description.toLocaleLowerCase().includes(query) ||
-        reference.tags.some((tag) => tag.toLocaleLowerCase().includes(query))
+        reference.sourceUrl.toLocaleLowerCase().includes(query) ||
+        reference.mimeType.toLocaleLowerCase().includes(query) ||
+        reference.kind.toLocaleLowerCase().includes(query) ||
+        reference.tags.some((tag) => tag.toLocaleLowerCase().includes(query)) ||
+        reference.colors.some((color) => color.toLocaleLowerCase().includes(query))
 
       return folderMatches && smartFolderMatches && queryMatches
     })

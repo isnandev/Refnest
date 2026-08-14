@@ -44,18 +44,17 @@ following product-level direction:
 
 - **`data-theme` on `<html>`** is the resolved theme, matching the global source's
   documented selector. `.dark` is accepted as an alias so unmodified shadcn/ui
-  `dark:` utilities keep working. The Settings page owns the system/light/dark
+  `dark:` utilities keep working. The Settings modal owns the system/light/dark
   preference and persists it through the Bun sidecar to SQLite; the command
-  palette keeps a one-key light/dark flip for the moments the page is too far.
+  palette keeps a one-key light/dark flip for the moments the modal is closed.
 - **The main scroller uses a minimalist custom scrollbar.** A transparent `8px`
   hit track carries a `4px` visible rounded thumb that gains contrast on hover
   and active states. It is semantic-token driven in both themes and scoped only
   to `#main-content`.
-- **Settings is one page, not scattered chrome.** Theme, reduced motion, and the AI
-  provider live on a single full-screen Settings view with a `Library` return control
-  in the titlebar. It is reached from the button pinned to the sidebar footer or from
-  the command palette; no preference keeps a shortcut in the titlebar, so the toolbar
-  stays about the references.
+- **Settings is one modal, not a page.** Theme, reduced motion, libraries, imports,
+  MCP, and the AI provider live in a single dialog with a left section list and a
+  main pane. The library stays mounted underneath. It is reached from the sidebar
+  footer or the command palette; no preference keeps a shortcut in the titlebar.
 - **App preferences are local and visible.** Appearance settings take effect
   immediately, persist on device, and can be restored to documented defaults. Only
   settings that change this shell are shown — a preference with nothing to act on is
@@ -121,10 +120,10 @@ following product-level direction:
   and arrows walk the order the grid is showing. Videos use the original asset
   in a native player, start muted so autoplay is reliable, and retain controls
   for pause and unmute. The inspector is no longer a consequence of clicking:
-  it starts collapsed and opens beside the viewer only from the titlebar control
-  or the viewer's `Details` button. A vault is for looking at imagery, and the
-  metadata is a question the user asks rather than one the app answers
-  unprompted.
+  it starts collapsed and is left alone while the viewer is open — no Details
+  control in the viewer, and no collapse control on the inspector. A vault is
+  for looking at imagery, and the metadata is a question the user asks rather
+  than one the app answers unprompted. Zoomed images can be dragged to pan.
 - **Selection is a gesture; the bulk bar is its only new chrome.** Press and hold
   a reference to start a selection, then click to add and remove, `Shift`-click
   for a run, and `Ctrl/Cmd`-click without leaving the gesture. Because a hold has
@@ -186,11 +185,17 @@ following product-level direction:
   three layouts.
 - **How the grid reads lives in one popover; what it shows lives in another.**
   Layout, thumbnail quality, sort, columns, and the caption toggles sit together
-  under the view control, and tag filtering keeps its own funnel next door.
+  under the view control, and filtering keeps its own funnel next door.
   Mixing them would put "which references am I looking at" and "how big are
-  they" in the same menu. Every one of these is a saved preference, so the
-  library opens the way it was left; they travel in the same `DesktopSettings`
-  document as theme and window bounds.
+  they" in the same menu. Sort still happens in the sidecar over the whole
+  result; the funnel then narrows that already-sorted page client-side so a
+  large library is not re-fetched for every chip. Tags can be included or
+  excluded, types and ratings and dates and folders combine, and presence
+  flags cover notes, a stored palette, and a thumbnail. Match All / Any joins
+  those clauses; excludes always subtract. The current document and named
+  presets live in local storage per workspace so a restart opens the same
+  funnel without growing the shared settings contract. The toolbar badge
+  counts active groups, and an empty grid offers a one-click clear.
 - **Three layouts, each earning its place.** Masonry keeps the columns even and
   lets height run; justified fills each row to both edges at one height, the way
   a contact sheet reads; grid crops to a square when the collection matters more

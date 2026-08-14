@@ -67,14 +67,6 @@ const describeSource = (request: MetadataRequest) => {
     : { sourceFile: fileName }
 }
 
-const SYSTEM_PROMPT = [
-  "You label saved design references.",
-  "Reply with a single JSON object and nothing else: no prose, no apology, no code fence.",
-  "Any image is attached to the user message as inline data, so never ask for a URL and never try to fetch one.",
-  "When no image is attached, work from the supplied text and still return the JSON object.",
-  "Use practical design vocabulary, and choose suggestedFolderId from the listed folder ids or null, never an invented one."
-].join(" ")
-
 export type OpenAiCompatibleClientShape = {
   readonly generateMetadata: (
     settings: AiProviderSettings,
@@ -137,7 +129,7 @@ const makeOpenAiCompatibleClient = Effect.gen(function* () {
         }
       })
       const messages = [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: settings.metadataPrompt },
         {
           role: "user",
           content:

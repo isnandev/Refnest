@@ -111,7 +111,10 @@ export function ReferenceLibrary({
     searchQuery,
     filtersOpen,
     viewOptionsOpen,
-    activeFilter,
+    filters,
+    activeFilterCount,
+    filterTags,
+    filterPresets,
     mobileSidebarOpen,
     quickSaveOpen,
     folderCreateOpen,
@@ -123,7 +126,6 @@ export function ReferenceLibrary({
     referenceExport,
     collectionFolders,
     smartFolders,
-    filterOptions,
     visibleItems,
     currentFolderLabel,
     currentFolderCount,
@@ -132,7 +134,11 @@ export function ReferenceLibrary({
     setSearchQuery,
     setFiltersOpen,
     setViewOptionsOpen,
-    setActiveFilter,
+    setFilters,
+    clearFilters,
+    saveFilterPreset,
+    applyFilterPreset,
+    deleteFilterPreset,
     setInspectorOpen,
     setMobileSidebarOpen,
     setQuickSaveOpen,
@@ -275,8 +281,11 @@ export function ReferenceLibrary({
                 view={view}
                 viewOptionsOpen={viewOptionsOpen}
                 filterOpen={filtersOpen}
-                activeFilter={activeFilter}
-                filterOptions={filterOptions}
+                filters={filters}
+                activeFilterCount={activeFilterCount}
+                filterTags={filterTags}
+                filterFolders={collectionFolders}
+                filterPresets={filterPresets}
                 canEnrich={activeItem !== null && aiEnabled}
                 actionPending={library.pending || referenceImport.pending}
                 onOpenSidebar={() => setMobileSidebarOpen(true)}
@@ -286,7 +295,11 @@ export function ReferenceLibrary({
                 onViewOptionsOpenChange={setViewOptionsOpen}
                 onRefresh={() => void library.refresh()}
                 onFiltersOpenChange={setFiltersOpen}
-                onFilterChange={setActiveFilter}
+                onFiltersChange={setFilters}
+                onClearFilters={clearFilters}
+                onSaveFilterPreset={saveFilterPreset}
+                onApplyFilterPreset={applyFilterPreset}
+                onDeleteFilterPreset={deleteFilterPreset}
                 onEnrich={() => void enrichActive()}
               />
               </>
@@ -336,7 +349,14 @@ export function ReferenceLibrary({
                     library.references.status === "loading"
                   }
                   error={referencesError}
+                  hasActiveFilters={
+                    activeFilterCount > 0 || searchQuery.trim().length > 0
+                  }
                   onRetry={() => void library.refreshReferences()}
+                  onClearFilters={() => {
+                    setSearchQuery("")
+                    clearFilters()
+                  }}
                   onOpen={openReference}
                   onToggleSelect={(item) => selection.toggle(item.id)}
                   onExtendSelect={(item) => selection.extendTo(item.id)}
@@ -368,7 +388,6 @@ export function ReferenceLibrary({
                 }}
                 onPrevious={showPreviousReference}
                 onNext={showNextReference}
-                onShowDetails={() => setInspectorOpen(true)}
               />
             </main>
 
@@ -425,6 +444,7 @@ export function ReferenceLibrary({
                   referenceImport.actionError ??
                   library.actionError
                 }
+                showClose={!viewerOpen}
                 onClose={() => setInspectorOpen(false)}
                 onEditMetadata={updateActive}
                 onToggleFavorite={() => {
@@ -470,6 +490,7 @@ export function ReferenceLibrary({
           folders={collectionFolders}
           allVisibleSelected={selection.allVisibleSelected}
           pending={library.pending}
+          canEnrich={activeItem !== null && aiEnabled}
           onSelectAll={selection.selectAll}
           onClear={selection.clear}
           onFavorite={(favorite) => void favoriteSelected(favorite)}
@@ -477,6 +498,7 @@ export function ReferenceLibrary({
           onAddTags={(value) => void addTagsToSelected(value)}
           onRemoveTag={(tag) => void removeTagFromSelected(tag)}
           onRate={(rating) => void rateSelected(rating)}
+          onEnrich={() => void enrichActive()}
           onTrash={() => void trashSelected()}
           onRestore={() => void restoreSelected()}
         />

@@ -3,6 +3,8 @@ import { Effect } from "effect"
 import {
   runYtDlpProcess,
   YT_DLP_FORMAT,
+  YT_DLP_YOUTUBE_PLAYER_CLIENTS,
+  ytDlpCommonArgs,
   ytDlpFormatForHeight
 } from "../src/features/quick-save/yt-dlp-downloader"
 
@@ -62,5 +64,27 @@ describe("yt-dlp child-process boundary", () => {
     expect(steps.every((step) => !step.includes("height<=1080"))).toBe(true)
     expect(steps.filter((step) => step.includes("height<=2160")).length).toBe(4)
     expect(steps.at(-1)).toBe("best")
+  })
+
+  it("skips video+audio merge when ffmpeg is unavailable", () => {
+    const steps = ytDlpFormatForHeight(1080, false).split("/")
+    expect(steps.some((step) => step.includes("+"))).toBe(false)
+    expect(steps[0]).toBe("best[height<=1080][ext=mp4]")
+    expect(steps.at(-1)).toBe("best")
+  })
+
+  it("pins YouTube to PO-token-free player clients", () => {
+    const args = ytDlpCommonArgs(null, "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    const extractor = args.indexOf("--extractor-args")
+    expect(extractor).toBeGreaterThanOrEqual(0)
+    expect(args[extractor + 1]).toBe(
+      `youtube:player_client=${YT_DLP_YOUTUBE_PLAYER_CLIENTS}`
+    )
+    expect(args.includes("--impersonate")).toBe(false)
+    expect(
+      ytDlpCommonArgs(null, "https://www.instagram.com/p/abc/").includes(
+        "--extractor-args"
+      )
+    ).toBe(false)
   })
 })

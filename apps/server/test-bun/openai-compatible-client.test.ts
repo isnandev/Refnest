@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import { FolderId } from "@refnest/contracts"
+import { DEFAULT_AI_METADATA_PROMPT, FolderId } from "@refnest/contracts"
 import { Effect, Layer } from "effect"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
@@ -23,7 +23,8 @@ const providerSettings = (
   model: "vision-model",
   apiKey: "provider-secret",
   localProvider: true,
-  enabled
+  enabled,
+  metadataPrompt: DEFAULT_AI_METADATA_PROMPT
 })
 
 const metadataRequest = (
@@ -73,6 +74,7 @@ describe("OpenAI-compatible metadata client", () => {
       readonly path: string
       readonly authorization: string | null
       readonly responseFormat: unknown
+      readonly systemPrompt: string | null
     }> = []
     let responseNumber = 0
     const server = Bun.serve({
@@ -82,11 +84,23 @@ describe("OpenAI-compatible metadata client", () => {
         responseNumber += 1
         const body = (await request.json()) as {
           readonly response_format?: unknown
+          readonly messages?: ReadonlyArray<{
+            readonly role: string
+            readonly content: unknown
+          }>
         }
         observedRequests.push({
           path: new URL(request.url).pathname,
           authorization: request.headers.get("authorization"),
-          responseFormat: body.response_format
+          responseFormat: body.response_format,
+          systemPrompt:
+            body.messages?.find((message) => message.role === "system")
+              ?.content === undefined
+              ? null
+              : String(
+                  body.messages.find((message) => message.role === "system")
+                    ?.content
+                )
         })
 
         if (responseNumber === 1) {
@@ -120,7 +134,10 @@ describe("OpenAI-compatible metadata client", () => {
           })
           const baseUrl = `http://127.0.0.1:${server.port}/v1/`
           const metadata = yield* client.generateMetadata(
-            providerSettings(baseUrl),
+            {
+              ...providerSettings(baseUrl),
+              metadataPrompt: "Label this as product photography."
+            },
             request
           )
 
@@ -133,7 +150,8 @@ describe("OpenAI-compatible metadata client", () => {
             {
               path: "/v1/chat/completions",
               authorization: "Bearer provider-secret",
-              responseFormat: { type: "json_object" }
+              responseFormat: { type: "json_object" },
+              systemPrompt: "Label this as product photography."
             }
           ])
 

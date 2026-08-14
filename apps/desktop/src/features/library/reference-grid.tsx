@@ -28,7 +28,9 @@ export function ReferenceGrid({
   failedImages,
   loading,
   error,
+  hasActiveFilters = false,
   onRetry,
+  onClearFilters,
   onOpen,
   onToggleSelect,
   onExtendSelect
@@ -42,7 +44,9 @@ export function ReferenceGrid({
   readonly failedImages: ReadonlySet<ReferenceId>
   readonly loading: boolean
   readonly error: string | null
+  readonly hasActiveFilters?: boolean
   readonly onRetry: () => void
+  readonly onClearFilters?: () => void
   readonly onOpen: (item: InspirationReference) => void
   readonly onToggleSelect: (item: InspirationReference) => void
   readonly onExtendSelect: (item: InspirationReference) => void
@@ -139,8 +143,15 @@ export function ReferenceGrid({
         </div>
         <h2 className="mt-4 text-h3">No references found</h2>
         <p className="mt-1 max-w-72 text-body-sm text-muted-foreground">
-          Try another search or clear the current filter.
+          {hasActiveFilters
+            ? "Nothing in this view matches the current search or filters."
+            : "This folder is empty."}
         </p>
+        {hasActiveFilters && onClearFilters !== undefined && (
+          <Button type="button" variant="outline" className="mt-4" onClick={onClearFilters}>
+            Clear filters
+          </Button>
+        )}
       </div>
     )
   }

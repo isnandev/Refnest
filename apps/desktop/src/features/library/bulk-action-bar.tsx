@@ -1,5 +1,5 @@
 import type { FolderId, InspirationReference } from "@refnest/contracts"
-import { CheckCheck, Heart, HeartOff, RotateCcw, Trash2, X } from "lucide-react"
+import { CheckCheck, Heart, HeartOff, RotateCcw, Sparkles, Trash2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -19,6 +19,7 @@ export function BulkActionBar({
   folders,
   allVisibleSelected,
   pending,
+  canEnrich,
   onSelectAll,
   onClear,
   onFavorite,
@@ -26,6 +27,7 @@ export function BulkActionBar({
   onAddTags,
   onRemoveTag,
   onRate,
+  onEnrich,
   onTrash,
   onRestore
 }: {
@@ -33,6 +35,7 @@ export function BulkActionBar({
   readonly folders: readonly LibraryFolder[]
   readonly allVisibleSelected: boolean
   readonly pending: boolean
+  readonly canEnrich: boolean
   readonly onSelectAll: () => void
   readonly onClear: () => void
   readonly onFavorite: (favorite: boolean) => void
@@ -40,6 +43,7 @@ export function BulkActionBar({
   readonly onAddTags: (value: string) => void
   readonly onRemoveTag: (tag: string) => void
   readonly onRate: (rating: number) => void
+  readonly onEnrich: () => void
   readonly onTrash: () => void
   readonly onRestore: () => void
 }) {
@@ -93,6 +97,18 @@ export function BulkActionBar({
         disabled={pending || anyTrashed}
         onRate={onRate}
       />
+
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Enrich selected reference with AI"
+        title="Enrich selected reference with AI"
+        disabled={!canEnrich || pending}
+        onClick={onEnrich}
+      >
+        <Sparkles aria-hidden="true" />
+      </Button>
 
       <Button
         type="button"

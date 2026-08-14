@@ -2,7 +2,8 @@ import { describe, expect, it } from "bun:test"
 import {
   AiSettings,
   CaptureJobId,
-  CreateQuickSave
+  CreateQuickSave,
+  DEFAULT_AI_METADATA_PROMPT
 } from "@refnest/contracts"
 import { Deferred, Effect, Layer } from "effect"
 import { join } from "node:path"
@@ -45,7 +46,8 @@ const fakeAiSettings = new AiSettings({
   model: "unused-model",
   hasApiKey: false,
   localProvider: false,
-  enabled: false
+  enabled: false,
+  metadataPrompt: DEFAULT_AI_METADATA_PROMPT
 })
 
 const FakeAiService = Layer.succeed(

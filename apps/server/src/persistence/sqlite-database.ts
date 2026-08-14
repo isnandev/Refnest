@@ -98,6 +98,7 @@ const migrate = (database: Database) => {
       api_key TEXT,
       local_provider INTEGER NOT NULL DEFAULT 0,
       enabled INTEGER NOT NULL DEFAULT 0,
+      metadata_prompt TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL
     );
 
@@ -165,6 +166,11 @@ const migrate = (database: Database) => {
       "ALTER TABLE ai_settings ADD COLUMN local_provider INTEGER NOT NULL DEFAULT 0"
     )
   }
+  if (!aiSettingsColumns.some((column) => column.name === "metadata_prompt")) {
+    database.run(
+      "ALTER TABLE ai_settings ADD COLUMN metadata_prompt TEXT NOT NULL DEFAULT ''"
+    )
+  }
 
   // A library saved before ratings and file timestamps existed keeps every row;
   // the added columns simply read as unrated and undated until something writes
@@ -188,9 +194,9 @@ const migrate = (database: Database) => {
   database
     .query<never, [string, string, string]>(`
       INSERT OR IGNORE INTO ai_settings (
-        id, base_url, model, api_key, local_provider, enabled, updated_at
+        id, base_url, model, api_key, local_provider, enabled, metadata_prompt, updated_at
       )
-      VALUES (1, ?, ?, NULL, 0, 0, ?)
+      VALUES (1, ?, ?, NULL, 0, 0, '', ?)
     `)
     .run("https://api.openai.com/v1", "gpt-4.1-mini", new Date().toISOString())
 

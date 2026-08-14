@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { FilterPopover } from "./filter-popover"
 import { COLUMN_MAX, COLUMN_MIN, boundedColumns } from "./library-columns"
+import type { LibraryFolder } from "./library-data"
+import type { FilterPreset, LibraryFilters } from "./library-filters"
 import { ViewOptionsPopover } from "./view-options-popover"
 
 const SEARCH_SHORTCUT =
@@ -27,8 +29,11 @@ export function LibraryToolbar({
   view,
   viewOptionsOpen,
   filterOpen,
-  activeFilter,
-  filterOptions,
+  filters,
+  activeFilterCount,
+  filterTags,
+  filterFolders,
+  filterPresets,
   canEnrich,
   actionPending,
   onOpenSidebar,
@@ -38,7 +43,11 @@ export function LibraryToolbar({
   onViewOptionsOpenChange,
   onRefresh,
   onFiltersOpenChange,
-  onFilterChange,
+  onFiltersChange,
+  onClearFilters,
+  onSaveFilterPreset,
+  onApplyFilterPreset,
+  onDeleteFilterPreset,
   onEnrich
 }: {
   workspaceLabel: string
@@ -47,8 +56,11 @@ export function LibraryToolbar({
   view: LibraryViewPreferences
   viewOptionsOpen: boolean
   filterOpen: boolean
-  activeFilter: string
-  filterOptions: readonly string[]
+  filters: LibraryFilters
+  activeFilterCount: number
+  filterTags: readonly string[]
+  filterFolders: readonly LibraryFolder[]
+  filterPresets: readonly FilterPreset[]
   canEnrich: boolean
   actionPending: boolean
   onOpenSidebar: () => void
@@ -58,7 +70,11 @@ export function LibraryToolbar({
   onViewOptionsOpenChange: (open: boolean) => void
   onRefresh: () => void
   onFiltersOpenChange: (open: boolean) => void
-  onFilterChange: (filter: string) => void
+  onFiltersChange: (filters: LibraryFilters) => void
+  onClearFilters: () => void
+  onSaveFilterPreset: (name: string) => void
+  onApplyFilterPreset: (id: string) => void
+  onDeleteFilterPreset: (id: string) => void
   onEnrich: () => void
 }) {
   /** The slider runs zoomed-out to zoomed-in, which is 8 columns down to 1. */
@@ -152,10 +168,17 @@ export function LibraryToolbar({
         />
         <FilterPopover
           open={filterOpen}
-          filters={filterOptions}
-          activeFilter={activeFilter}
+          filters={filters}
+          activeCount={activeFilterCount}
+          tags={filterTags}
+          folders={filterFolders}
+          presets={filterPresets}
           onOpenChange={onFiltersOpenChange}
-          onFilterChange={onFilterChange}
+          onChange={onFiltersChange}
+          onClear={onClearFilters}
+          onSavePreset={onSaveFilterPreset}
+          onApplyPreset={onApplyFilterPreset}
+          onDeletePreset={onDeleteFilterPreset}
         />
       </div>
 

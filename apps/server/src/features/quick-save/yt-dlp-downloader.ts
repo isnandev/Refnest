@@ -16,6 +16,7 @@ import {
   resolveContainedFile
 } from "../../persistence/path-policy"
 import { CaptureFailure } from "./capture-failure"
+import { classifySource } from "./classify-source"
 import {
   CaptureHttpClient,
   type CaptureHttpClientShape
@@ -26,6 +27,7 @@ import {
   MAX_PROCESS_STDOUT_BYTES,
   MAX_YT_DLP_PROCESS_MILLIS
 } from "./capture-limits"
+import { resolveFfmpegExecutable } from "../converter/video-thumbnailer"
 import { MediaDownloader } from "./media-download"
 import { SettingsRepository } from "../settings/settings-repository"
 
@@ -88,9 +90,9 @@ const releaseAsset = () => {
   throw new Error(`yt-dlp does not publish a RefNest-compatible binary for ${process.platform}/${process.arch}`)
 }
 
-const findSystemYtDlp = () => {
+const findSystemExecutable = (name: string) => {
   const lookup = Bun.spawnSync(
-    process.platform === "win32" ? ["where.exe", "yt-dlp"] : ["which", "yt-dlp"],
+    process.platform === "win32" ? ["where.exe", name] : ["which", name],
     { stdout: "pipe", stderr: "ignore" }
   )
   if (lookup.exitCode !== 0) return null
@@ -101,6 +103,36 @@ const findSystemYtDlp = () => {
     .find((line) => line.length > 0)
   return first ?? null
 }
+
+const findSystemYtDlp = () => findSystemExecutable("yt-dlp")
+
+const isBunExecutable = (path: string) => {
+  const name = basename(path).toLocaleLowerCase()
+  return name === "bun" || name === "bun.exe"
+}
+
+// Deno is yt-dlp's default solver; node next; bun last (deprecated past 1.3.14).
+const detectJsRuntimeArgs = () => {
+  const deno = findSystemExecutable("deno")
+  if (deno !== null) return ["--js-runtimes", `deno:${deno}`]
+  const node = findSystemExecutable("node")
+  if (node !== null) return ["--js-runtimes", `node:${node}`]
+  if (isBunExecutable(process.execPath)) {
+    return ["--js-runtimes", `bun:${process.execPath}`]
+  }
+  const bun = findSystemExecutable("bun")
+  if (bun !== null) return ["--js-runtimes", `bun:${bun}`]
+  return []
+}
+
+let cachedJsRuntimeArgs: ReadonlyArray<string> | undefined
+const jsRuntimeArgs = () => {
+  cachedJsRuntimeArgs ??= detectJsRuntimeArgs()
+  return cachedJsRuntimeArgs
+}
+
+// Default list ends in `web`, whose HTTPS formats 403 without a PO token.
+export const YT_DLP_YOUTUBE_PLAYER_CLIENTS = "visionos,android_vr,web_embedded"
 
 const verifiedDownload = (
   toolsDirectory: string,
@@ -254,25 +286,61 @@ export const runYtDlpProcess = (
   )
 
 /**
- * Prefer a merged MP4 at `height` or below. Combined `best[ext=mp4]` on YouTube
- * is usually 360p/720p because 1080p+ is video-only. Fall through to whatever
- * the extractor can actually serve.
+ * Prefer a merged MP4 at `height` or below when ffmpeg can join video+audio.
+ * Combined `best[ext=mp4]` on YouTube is usually 360p/720p because 1080p+ is
+ * video-only. Without a merger, stay on progressive streams and fall through.
  */
-export const ytDlpFormatForHeight = (height: VideoDownloadResolution) =>
-  `bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${height}]+bestaudio/best[height<=${height}][ext=mp4]/best[height<=${height}]/best[ext=mp4]/best`
+export const ytDlpFormatForHeight = (
+  height: VideoDownloadResolution,
+  merge = true
+) =>
+  merge
+    ? `bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${height}]+bestaudio/best[height<=${height}][ext=mp4]/best[height<=${height}]/best[ext=mp4]/best`
+    : `best[height<=${height}][ext=mp4]/best[height<=${height}]/best[ext=mp4]/best`
 
 export const YT_DLP_FORMAT = ytDlpFormatForHeight(
   DEFAULT_DESKTOP_SETTINGS.videoDownloadResolution
 )
 
-const commonArgs = () => {
+const lastDiagnosticLine = (stderr: string) =>
+  stderr
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .findLast((line) => line.length > 0)
+
+const processFailure = (action: string, stderr: string) => {
+  const detail = lastDiagnosticLine(stderr)
+  return failure(
+    detail === undefined
+      ? `yt-dlp could not ${action} this post because the platform rejected the request.`
+      : `yt-dlp could not ${action} this post: ${detail}`
+  )
+}
+
+export const ytDlpCommonArgs = (ffmpegPath: string | null, url: string) => {
   const cookies = process.env["REFNEST_YT_DLP_COOKIES_FROM_BROWSER"]?.trim()
+  let youtube = false
+  try {
+    youtube = classifySource(new URL(url)) === "youtube"
+  } catch {
+    youtube = false
+  }
   return [
     "--no-config",
     "--no-playlist",
     "--no-warnings",
-    "--merge-output-format",
-    "mp4",
+    ...(ffmpegPath === null
+      ? []
+      : ["--ffmpeg-location", ffmpegPath, "--merge-output-format", "mp4"]),
+    // web/mweb HTTPS formats 403 without a PO token.
+    ...(youtube
+      ? [
+          "--extractor-args",
+          `youtube:player_client=${YT_DLP_YOUTUBE_PLAYER_CLIENTS}`,
+          ...jsRuntimeArgs()
+        ]
+      : []),
     ...(cookies === undefined || cookies.length === 0
       ? []
       : ["--cookies-from-browser", cookies])
@@ -373,17 +441,16 @@ const makeYtDlpDownloader = Effect.gen(function* () {
 
     const capture = Effect.gen(function* () {
     const executable = yield* resolveExecutable
+    const ffmpegPath = resolveFfmpegExecutable()
     const metadataProcess = yield* runYtDlpProcess(executable, [
-      ...commonArgs(),
+      ...ytDlpCommonArgs(ffmpegPath, url),
       "--quiet",
       "--skip-download",
       "--dump-single-json",
       url
     ])
     if (metadataProcess.exitCode !== 0) {
-      return yield* failure(
-        "yt-dlp could not inspect this post because the platform rejected the request."
-      )
+      return yield* processFailure("inspect", metadataProcess.stderr)
     }
 
     const metadataUnknown = yield* Effect.try({
@@ -409,10 +476,10 @@ const makeYtDlpDownloader = Effect.gen(function* () {
       )
     )
     const downloadProcess = yield* runYtDlpProcess(executable, [
-      ...commonArgs(),
+      ...ytDlpCommonArgs(ffmpegPath, url),
       "--quiet",
       "--format",
-      ytDlpFormatForHeight(resolution),
+      ytDlpFormatForHeight(resolution, ffmpegPath !== null),
       "--output",
       outputTemplate,
       "--print",
@@ -420,9 +487,7 @@ const makeYtDlpDownloader = Effect.gen(function* () {
       url
     ])
     if (downloadProcess.exitCode !== 0) {
-      return yield* failure(
-        "yt-dlp could not download this post because the platform rejected the request."
-      )
+      return yield* processFailure("download", downloadProcess.stderr)
     }
 
     const assetPath = downloadProcess.stdout

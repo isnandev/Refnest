@@ -69,7 +69,8 @@ const findSystemFfmpeg = () => {
   )
 }
 
-const resolveFfmpeg = () => {
+/** Bundled `refnest-ffmpeg`, then PATH. yt-dlp needs the same binary to merge streams. */
+export const resolveFfmpegExecutable = () => {
   const configured = process.env["REFNEST_FFMPEG_PATH"]?.trim()
   if (configured !== undefined && configured.length > 0) {
     return isExecutableFile(configured) ? configured : null
@@ -190,7 +191,7 @@ const makeVideoThumbnailer = Effect.gen(function* () {
     sourcePath: string,
     referenceId: ReferenceId
   ) {
-    const executable = resolveFfmpeg()
+    const executable = resolveFfmpegExecutable()
     if (executable === null) {
       return yield* failed("No video thumbnail extractor is available.")
     }

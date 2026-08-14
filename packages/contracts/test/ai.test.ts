@@ -1,5 +1,9 @@
 import { describe, expect, it } from "@effect/vitest"
-import { AiSettings, UpdateAiSettings } from "@refnest/contracts"
+import {
+  AiSettings,
+  DEFAULT_AI_METADATA_PROMPT,
+  UpdateAiSettings
+} from "@refnest/contracts"
 import { Effect, Schema } from "effect"
 
 describe("AI contracts", () => {
@@ -11,11 +15,13 @@ describe("AI contracts", () => {
         hasApiKey: true,
         localProvider: false,
         enabled: true,
+        metadataPrompt: DEFAULT_AI_METADATA_PROMPT,
         apiKey: "must-not-survive"
       })
       const encoded = yield* Schema.encode(AiSettings)(settings)
 
       expect(encoded.hasApiKey).toBe(true)
+      expect(encoded.metadataPrompt).toBe(DEFAULT_AI_METADATA_PROMPT)
       expect("apiKey" in encoded).toBe(false)
     }))
 

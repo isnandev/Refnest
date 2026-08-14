@@ -90,7 +90,8 @@ export const presentAiSettings = (settings: AiSettings) => ({
   model: settings.model,
   hasApiKey: settings.hasApiKey,
   localProvider: settings.localProvider,
-  enabled: settings.enabled
+  enabled: settings.enabled,
+  metadataPrompt: settings.metadataPrompt
 })
 
 export const paginate = <A>(

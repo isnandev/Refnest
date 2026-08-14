@@ -36,6 +36,7 @@ export function InspectorPanel({
   canEnrich,
   pending,
   actionError,
+  showClose = true,
   onClose,
   onEditMetadata,
   onToggleFavorite,
@@ -56,6 +57,7 @@ export function InspectorPanel({
   readonly canEnrich: boolean
   readonly pending: boolean
   readonly actionError: string | null
+  readonly showClose?: boolean
   readonly onClose: () => void
   readonly onEditMetadata: (
     patch: UpdateInspirationReference
@@ -104,15 +106,17 @@ export function InspectorPanel({
                 />
               </Button>
             )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Hide details"
-              onClick={onClose}
-            >
-              <PanelRightClose aria-hidden="true" />
-            </Button>
+            {showClose ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Hide details"
+                onClick={onClose}
+              >
+                <PanelRightClose aria-hidden="true" />
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -178,9 +182,10 @@ export function InspectorPanel({
               }}
             />
 
-            <button
+            <Button
               type="button"
-              className="mt-4 flex h-9 w-full items-center gap-2 rounded-sm text-body-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent"
+              variant="outline"
+              className="mt-4 w-full"
               disabled={item.source === "local-file"}
               title={
                 item.source === "local-file"
@@ -189,9 +194,9 @@ export function InspectorPanel({
               }
               onClick={onOpenSource}
             >
-              <ExternalLink className="size-4" aria-hidden="true" />
-              Open original source
-            </button>
+              <ExternalLink aria-hidden="true" />
+              Open original path
+            </Button>
           </>
         )}
 

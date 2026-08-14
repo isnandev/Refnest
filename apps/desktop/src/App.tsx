@@ -13,7 +13,7 @@ import { ConverterPage } from "@/features/converter/converter-page"
 import { useEnvironments } from "@/features/environments/use-environments"
 import { useSharing } from "@/features/environments/use-sharing"
 import { ReferenceLibrary } from "@/features/library/reference-library"
-import { SettingsPage } from "@/features/settings/settings-page"
+import { SettingsModal } from "@/features/settings/settings-modal"
 import { useAiSettings } from "@/features/settings/use-ai-settings"
 import { useAppSettings } from "@/features/settings/use-app-settings"
 import type { SidebarPreferences } from "@/features/shell/use-sidebar"
@@ -93,27 +93,7 @@ export default function App() {
 
   return (
     <>
-      {settingsOpen ? (
-        <SettingsPage
-          resolvedTheme={theme.theme}
-          themePreference={theme.preference}
-          settings={settings}
-          saveError={appSettings.saveError}
-          environments={environments}
-          sharing={sharing}
-          aiState={aiSettings.state}
-          aiPending={aiSettings.pending}
-          aiActionError={aiSettings.actionError}
-          onThemePreferenceChange={theme.setPreference}
-          onSettingChange={appSettings.update}
-          onRetryAiSettings={() => void aiSettings.refresh()}
-          onSaveAiSettings={async (patch) =>
-            (await aiSettings.save(patch)) !== null
-          }
-          onReset={appSettings.resetPreferences}
-          onClose={() => setSettingsOpen(false)}
-        />
-      ) : converterOpen ? (
+      {converterOpen ? (
         <ConverterPage onClose={() => setConverterOpen(false)} />
       ) : (
         <ReferenceLibrary
@@ -144,6 +124,27 @@ export default function App() {
           onToggleTheme={theme.toggle}
         />
       )}
+
+      <SettingsModal
+        open={settingsOpen}
+        resolvedTheme={theme.theme}
+        themePreference={theme.preference}
+        settings={settings}
+        saveError={appSettings.saveError}
+        environments={environments}
+        sharing={sharing}
+        aiState={aiSettings.state}
+        aiPending={aiSettings.pending}
+        aiActionError={aiSettings.actionError}
+        onOpenChange={setSettingsOpen}
+        onThemePreferenceChange={theme.setPreference}
+        onSettingChange={appSettings.update}
+        onRetryAiSettings={() => void aiSettings.refresh()}
+        onSaveAiSettings={async (patch) =>
+          (await aiSettings.save(patch)) !== null
+        }
+        onReset={appSettings.resetPreferences}
+      />
 
       <WorkspaceCreateModal
         open={workspaceModalOpen}

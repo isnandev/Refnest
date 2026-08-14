@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import { AiSettings } from "@refnest/contracts"
+import { AiSettings, DEFAULT_AI_METADATA_PROMPT } from "@refnest/contracts"
 import { Effect, Layer, Schema } from "effect"
 import {
   AiSettingsRepository,
@@ -48,7 +48,8 @@ describe("AI settings repository", () => {
               model: "gpt-4.1-mini",
               hasApiKey: false,
               localProvider: false,
-              enabled: false
+              enabled: false,
+              metadataPrompt: DEFAULT_AI_METADATA_PROMPT
             })
 
             const updated = yield* repository.update({
@@ -56,7 +57,8 @@ describe("AI settings repository", () => {
               model: "vision-model",
               apiKey: "  provider-secret  ",
               localProvider: true,
-              enabled: true
+              enabled: true,
+              metadataPrompt: "Label this as product photography."
             })
             const encoded = yield* Schema.encode(AiSettings)(updated)
             const provider = yield* repository.getProvider()
@@ -66,12 +68,14 @@ describe("AI settings repository", () => {
               model: "vision-model",
               hasApiKey: true,
               localProvider: true,
-              enabled: true
+              enabled: true,
+              metadataPrompt: "Label this as product photography."
             })
             expect("apiKey" in encoded).toBe(false)
             expect(provider.apiKey).toBe("provider-secret")
             expect(provider.baseUrl).toBe("http://127.0.0.1:11434/v1")
             expect(provider.localProvider).toBe(true)
+            expect(provider.metadataPrompt).toBe("Label this as product photography.")
 
             const sameOrigin = yield* repository.update({
               baseUrl: "http://127.0.0.1:11434/api/v1/"
@@ -105,6 +109,9 @@ describe("AI settings repository", () => {
             const cleared = yield* repository.update({ apiKey: "   " })
             expect(cleared.hasApiKey).toBe(false)
             expect((yield* repository.getProvider()).apiKey).toBeNull()
+
+            const restored = yield* repository.update({ metadataPrompt: "   " })
+            expect(restored.metadataPrompt).toBe(DEFAULT_AI_METADATA_PROMPT)
           }).pipe(Effect.provide(repositoryLayer))
         })
       )

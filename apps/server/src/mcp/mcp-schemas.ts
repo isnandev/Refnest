@@ -333,20 +333,23 @@ export const AiSettingsObjectSchema = z.object({
   model: z.string().trim().min(1).max(200),
   hasApiKey: z.boolean(),
   localProvider: z.boolean(),
-  enabled: z.boolean()
+  enabled: z.boolean(),
+  metadataPrompt: z.string().max(8_192)
 }).strict()
 export const AiSettingsOutputSchema = z.object({ settings: AiSettingsObjectSchema }).strict()
 export const UpdateAiSettingsInputSchema = z.object({
   baseUrl: z.string().trim().min(1).max(2_048).optional(),
   model: z.string().trim().min(1).max(200).optional(),
   localProvider: z.boolean().optional(),
-  enabled: z.boolean().optional()
+  enabled: z.boolean().optional(),
+  metadataPrompt: z.string().max(8_192).optional()
 }).strict().refine(
   (input) =>
     input.baseUrl !== undefined ||
     input.model !== undefined ||
     input.localProvider !== undefined ||
-    input.enabled !== undefined,
+    input.enabled !== undefined ||
+    input.metadataPrompt !== undefined,
   "at least one AI setting change is required"
 )
 

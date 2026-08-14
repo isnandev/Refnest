@@ -9,7 +9,7 @@ import {
   type ReferenceId,
   type WorkspaceId
 } from "@refnest/contracts"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import {
   ALL_REFERENCES_SELECTION,
@@ -20,6 +20,15 @@ import {
   folderLabel,
   type LibrarySelection
 } from "./library-data"
+import {
+  EMPTY_LIBRARY_FILTERS,
+  applyLibraryFilters,
+  countActiveFilters,
+  loadLibraryFilterState,
+  saveLibraryFilterState,
+  type FilterPreset,
+  type LibraryFilters
+} from "./library-filters"
 import { parseTagList } from "./library-format"
 import { useDebouncedValue } from "./use-debounced-value"
 import { useLibraryData } from "./use-library-data"
@@ -70,7 +79,9 @@ export const useReferenceLibrary = ({
   const [searchQuery, setSearchQuery] = useState("")
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [viewOptionsOpen, setViewOptionsOpen] = useState(false)
-  const [activeFilter, setActiveFilter] = useState("All")
+  const [filters, setFilters] = useState<LibraryFilters>(EMPTY_LIBRARY_FILTERS)
+  const [filterPresets, setFilterPresets] = useState<readonly FilterPreset[]>([])
+  const persistFilters = useRef(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [quickSaveOpen, setQuickSaveOpen] = useState(false)
   const [folderCreateOpen, setFolderCreateOpen] = useState(false)
@@ -119,12 +130,30 @@ export const useReferenceLibrary = ({
   })
 
   useEffect(() => {
+    persistFilters.current = false
     setActiveSelection(ALL_REFERENCES_SELECTION)
     setActiveItem(null)
     setViewerId(null)
-    setSearchQuery("")
-    setActiveFilter("All")
+    if (workspaceId === null) {
+      setSearchQuery("")
+      setFilters(EMPTY_LIBRARY_FILTERS)
+      setFilterPresets([])
+      return
+    }
+    const stored = loadLibraryFilterState(workspaceId)
+    setSearchQuery(stored.searchQuery)
+    setFilters(stored.current)
+    setFilterPresets(stored.presets)
   }, [workspaceId])
+
+  useEffect(() => {
+    if (workspaceId === null) return
+    if (!persistFilters.current) {
+      persistFilters.current = true
+      return
+    }
+    saveLibraryFilterState(workspaceId, filters, searchQuery, filterPresets)
+  }, [filterPresets, filters, searchQuery, workspaceId])
 
   useEffect(() => {
     if (activeItem === null || library.references.status !== "ready") return
@@ -144,22 +173,19 @@ export const useReferenceLibrary = ({
     () => buildSmartFolders(library.navigation.smartFolders),
     [library.navigation.smartFolders]
   )
-  const filterOptions = useMemo(() => {
+  const filterTags = useMemo(() => {
     const tags = new Set(
       library.references.references.flatMap((reference) => reference.tags)
     )
-    if (activeFilter !== "All") tags.add(activeFilter)
-    return [...tags].sort((left, right) => left.localeCompare(right)).slice(0, 12)
-  }, [activeFilter, library.references.references])
+    for (const tag of filters.includeTags) tags.add(tag)
+    for (const tag of filters.excludeTags) tags.add(tag)
+    return [...tags].sort((left, right) => left.localeCompare(right))
+  }, [filters.excludeTags, filters.includeTags, library.references.references])
   const visibleItems = useMemo(
-    () =>
-      activeFilter === "All"
-        ? library.references.references
-        : library.references.references.filter((reference) =>
-            reference.tags.includes(activeFilter)
-          ),
-    [activeFilter, library.references.references]
+    () => applyLibraryFilters(library.references.references, filters),
+    [filters, library.references.references]
   )
+  const activeFilterCount = countActiveFilters(filters)
   const orderedIds = useMemo(
     () => visibleItems.map((item) => item.id),
     [visibleItems]
@@ -224,7 +250,6 @@ export const useReferenceLibrary = ({
       setActiveSelection(selectionTarget)
       setActiveItem(null)
       setViewerId(null)
-      setActiveFilter("All")
       setMobileSidebarOpen(false)
       selection.clear()
     },
@@ -403,6 +428,27 @@ export const useReferenceLibrary = ({
       ? { id: activeSelection.id, label: currentFolderLabel }
       : null
 
+  const clearFilters = useCallback(() => setFilters(EMPTY_LIBRARY_FILTERS), [])
+  const saveFilterPreset = useCallback((name: string) => {
+    const trimmed = name.trim()
+    if (trimmed.length === 0) return
+    setFilterPresets((current) => [
+      ...current.filter((preset) => preset.name !== trimmed),
+      {
+        id: `preset_${crypto.randomUUID()}`,
+        name: trimmed,
+        filters
+      }
+    ])
+  }, [filters])
+  const applyFilterPreset = useCallback((id: string) => {
+    const preset = filterPresets.find((entry) => entry.id === id)
+    if (preset !== undefined) setFilters(preset.filters)
+  }, [filterPresets])
+  const deleteFilterPreset = useCallback((id: string) => {
+    setFilterPresets((current) => current.filter((preset) => preset.id !== id))
+  }, [])
+
   return {
     activeSelection,
     activeItem,
@@ -414,7 +460,10 @@ export const useReferenceLibrary = ({
     searchQuery,
     filtersOpen,
     viewOptionsOpen,
-    activeFilter,
+    filters,
+    activeFilterCount,
+    filterTags,
+    filterPresets,
     mobileSidebarOpen,
     quickSaveOpen,
     folderCreateOpen,
@@ -426,7 +475,6 @@ export const useReferenceLibrary = ({
     referenceExport,
     collectionFolders,
     smartFolders,
-    filterOptions,
     visibleItems,
     currentFolderLabel,
     currentFolderCount,
@@ -436,7 +484,11 @@ export const useReferenceLibrary = ({
     setSearchQuery,
     setFiltersOpen,
     setViewOptionsOpen,
-    setActiveFilter,
+    setFilters,
+    clearFilters,
+    saveFilterPreset,
+    applyFilterPreset,
+    deleteFilterPreset,
     setInspectorOpen,
     setMobileSidebarOpen,
     setQuickSaveOpen,

@@ -1,10 +1,11 @@
 import type { InspirationReference } from "@refnest/contracts"
-import { ChevronLeft, ChevronRight, PanelRight, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, X } from "lucide-react"
 import {
   useEffect,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent
 } from "react"
 
@@ -31,6 +32,23 @@ export const zoomReferenceFromWheel = (zoom: number, deltaY: number) =>
     )
   )
 
+export const clampViewerPan = (
+  x: number,
+  y: number,
+  zoom: number,
+  width: number,
+  height: number
+) => {
+  if (zoom <= MIN_VIEWER_ZOOM) return { x: 0, y: 0 }
+
+  const extraX = Math.max(0, (width * (zoom - 1)) / 2)
+  const extraY = Math.max(0, (height * (zoom - 1)) / 2)
+  return {
+    x: Math.min(extraX, Math.max(-extraX, x)),
+    y: Math.min(extraY, Math.max(-extraY, y))
+  }
+}
+
 /**
  * The media viewer lives inside the library canvas instead of taking over the
  * app in a modal. Keeping the grid mounted behind it preserves scroll position
@@ -48,8 +66,7 @@ export function ReferenceViewer({
   total,
   onOpenChange,
   onPrevious,
-  onNext,
-  onShowDetails
+  onNext
 }: {
   readonly open?: boolean
   readonly item: InspirationReference | null
@@ -62,14 +79,21 @@ export function ReferenceViewer({
   readonly onOpenChange: (open: boolean) => void
   readonly onPrevious: () => void
   readonly onNext: () => void
-  readonly onShowDetails: () => void
 }) {
   const [zoom, setZoom] = useState(MIN_VIEWER_ZOOM)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
   const viewerRef = useRef<HTMLElement>(null)
+  const stageRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{
+    pointerId: number
+    x: number
+    y: number
+  } | null>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     setZoom(MIN_VIEWER_ZOOM)
+    setPan({ x: 0, y: 0 })
   }, [item?.id])
 
   useEffect(() => {
@@ -110,13 +134,65 @@ export function ReferenceViewer({
     }
   }
 
+  const stageSize = () => {
+    const stage = stageRef.current
+    return {
+      width: stage?.clientWidth ?? 0,
+      height: stage?.clientHeight ?? 0
+    }
+  }
+
   const onWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
     if (item.kind === "video" || imageUrl === undefined || event.deltaY === 0) {
       return
     }
 
     event.preventDefault()
-    setZoom((current) => zoomReferenceFromWheel(current, event.deltaY))
+    const nextZoom = zoomReferenceFromWheel(zoom, event.deltaY)
+    const { width, height } = stageSize()
+    setZoom(nextZoom)
+    setPan((current) => clampViewerPan(current.x, current.y, nextZoom, width, height))
+  }
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (
+      item.kind === "video" ||
+      zoom <= MIN_VIEWER_ZOOM ||
+      event.button !== 0 ||
+      event.target instanceof Element && event.target.closest("button")
+    ) {
+      return
+    }
+
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    dragRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY
+    }
+  }
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current
+    if (drag === null || drag.pointerId !== event.pointerId) return
+
+    const { width, height } = stageSize()
+    const dx = event.clientX - drag.x
+    const dy = event.clientY - drag.y
+    drag.x = event.clientX
+    drag.y = event.clientY
+    setPan((current) =>
+      clampViewerPan(current.x + dx, current.y + dy, zoom, width, height)
+    )
+  }
+
+  const endPan = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragRef.current?.pointerId !== event.pointerId) return
+    dragRef.current = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
   }
 
   return (
@@ -147,32 +223,31 @@ export function ReferenceViewer({
           </p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost-inverse"
-            size="sm"
-            onClick={onShowDetails}
-          >
-            <PanelRight aria-hidden="true" />
-            Details
-          </Button>
-          <Button
-            type="button"
-            variant="ghost-inverse"
-            size="icon-sm"
-            aria-label="Close viewer"
-            title="Close viewer (Esc)"
-            onClick={() => onOpenChange(false)}
-          >
-            <X aria-hidden="true" />
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant="ghost-inverse"
+          size="icon-sm"
+          aria-label="Close viewer"
+          title="Close viewer (Esc)"
+          onClick={() => onOpenChange(false)}
+        >
+          <X aria-hidden="true" />
+        </Button>
       </header>
 
       <div
-        className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden px-14 py-4"
+        ref={stageRef}
+        className={cn(
+          "relative flex min-h-0 flex-1 items-center justify-center overflow-hidden px-14 py-4",
+          item.kind !== "video" &&
+            zoom > MIN_VIEWER_ZOOM &&
+            "cursor-grab touch-none select-none active:cursor-grabbing"
+        )}
         onWheel={onWheel}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endPan}
+        onPointerCancel={endPan}
       >
         {item.kind === "video" ? (
           <ReferenceVideoPlayer
@@ -183,8 +258,10 @@ export function ReferenceViewer({
           />
         ) : (
           <div
-            className="size-full origin-center transition-transform duration-150 ease-out"
-            style={{ transform: `scale(${zoom})` }}
+            className="size-full origin-center"
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
+            }}
           >
             <ReferencePreview
               reference={item}

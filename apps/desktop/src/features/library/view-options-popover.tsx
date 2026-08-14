@@ -205,7 +205,7 @@ export function ViewOptionsPopover({
           sideOffset={6}
           collisionPadding={12}
           aria-label="View options"
-          className="library-popover z-50 max-h-[min(560px,calc(100vh-96px))] w-80 overflow-y-auto rounded-md border bg-popover p-3 text-popover-foreground outline-none"
+          className="library-folder-scroll library-popover z-50 max-h-[min(560px,calc(100vh-96px))] w-80 overflow-y-auto rounded-md border bg-popover p-3 text-popover-foreground outline-none"
         >
           <Row label="Layout">
             <Choice

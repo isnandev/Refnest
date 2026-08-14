@@ -1,4 +1,4 @@
-import { UpdateAiSettings } from "@refnest/contracts"
+import { DEFAULT_AI_METADATA_PROMPT, UpdateAiSettings } from "@refnest/contracts"
 import {
   CircleAlert,
   KeyRound,
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { SettingRow, SettingToggle } from "./setting-row"
 import type { AiSettingsState } from "./use-ai-settings"
 
@@ -38,6 +39,7 @@ export function AiSettingsSection({
   const [apiKey, setApiKey] = useState("")
   const [localProvider, setLocalProvider] = useState(false)
   const [enabled, setEnabled] = useState(false)
+  const [metadataPrompt, setMetadataPrompt] = useState(DEFAULT_AI_METADATA_PROMPT)
   const [formError, setFormError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
@@ -48,6 +50,7 @@ export function AiSettingsSection({
     setApiKey("")
     setLocalProvider(state.settings.localProvider)
     setEnabled(state.settings.enabled)
+    setMetadataPrompt(state.settings.metadataPrompt)
     setFormError(null)
   }, [state])
 
@@ -83,7 +86,8 @@ export function AiSettingsSection({
     model !== settings.model ||
     apiKey.length > 0 ||
     localProvider !== settings.localProvider ||
-    enabled !== settings.enabled
+    enabled !== settings.enabled ||
+    metadataPrompt !== settings.metadataPrompt
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -108,6 +112,7 @@ export function AiSettingsSection({
         model: trimmedModel,
         localProvider,
         enabled,
+        metadataPrompt,
         ...(apiKey.length === 0 ? {} : { apiKey })
       })
     )
@@ -210,6 +215,38 @@ export function AiSettingsSection({
             }}
           />
         </SettingRow>
+
+        <div className="space-y-2 border-t p-5">
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="ai-metadata-prompt">Enrichment prompt</Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={metadataPrompt === DEFAULT_AI_METADATA_PROMPT}
+              onClick={() => {
+                setMetadataPrompt(DEFAULT_AI_METADATA_PROMPT)
+                setSaved(false)
+              }}
+            >
+              Restore default
+            </Button>
+          </div>
+          <Textarea
+            id="ai-metadata-prompt"
+            value={metadataPrompt}
+            onChange={(event) => {
+              setMetadataPrompt(event.currentTarget.value)
+              setSaved(false)
+            }}
+            rows={6}
+            spellCheck={false}
+          />
+          <p className="text-caption text-muted-foreground">
+            Sent as the system prompt. The sidecar still asks for the same JSON
+            fields so titles, tags, and folder suggestions stay parseable.
+          </p>
+        </div>
 
         <div className="flex flex-col gap-3 border-t p-5 sm:flex-row sm:items-center sm:justify-end">
           {message !== null && (

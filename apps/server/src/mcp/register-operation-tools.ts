@@ -129,14 +129,15 @@ export const registerAiSettingsTools = (
       outputSchema: AiSettingsOutputSchema,
       annotations: OPEN_WORLD_UPDATE_ANNOTATIONS
     },
-    ({ baseUrl, model, localProvider, enabled }) =>
+    ({ baseUrl, model, localProvider, enabled, metadataPrompt }) =>
       runTool(
         services.ai.updateSettings(
           new UpdateAiSettings({
             ...(baseUrl === undefined ? {} : { baseUrl }),
             ...(model === undefined ? {} : { model }),
             ...(localProvider === undefined ? {} : { localProvider }),
-            ...(enabled === undefined ? {} : { enabled })
+            ...(enabled === undefined ? {} : { enabled }),
+            ...(metadataPrompt === undefined ? {} : { metadataPrompt })
           })
         ),
         (settings) => ({ settings: presentAiSettings(settings) })

@@ -2,6 +2,7 @@ import {
   AiRequestFailed,
   AiSettings,
   AiSettingsRejected,
+  DEFAULT_AI_METADATA_PROMPT,
   type UpdateAiSettings
 } from "@refnest/contracts"
 import { Context, Effect, Layer } from "effect"
@@ -14,6 +15,7 @@ type AiSettingsRow = {
   readonly api_key: string | null
   readonly local_provider: number
   readonly enabled: number
+  readonly metadata_prompt: string
 }
 
 export type AiProviderSettings = {
@@ -22,6 +24,12 @@ export type AiProviderSettings = {
   readonly apiKey: string | null
   readonly localProvider: boolean
   readonly enabled: boolean
+  readonly metadataPrompt: string
+}
+
+const storedMetadataPrompt = (value: string | null | undefined) => {
+  const trimmed = value?.trim() ?? ""
+  return trimmed.length === 0 ? DEFAULT_AI_METADATA_PROMPT : trimmed
 }
 
 const requestFailure = (reason: string) => new AiRequestFailed({ reason })
@@ -32,7 +40,8 @@ const toPublicSettings = (row: AiSettingsRow) =>
     model: row.model,
     hasApiKey: row.api_key !== null && row.api_key.length > 0,
     localProvider: row.local_provider === 1,
-    enabled: row.enabled === 1
+    enabled: row.enabled === 1,
+    metadataPrompt: storedMetadataPrompt(row.metadata_prompt)
   })
 
 const toProviderSettings = (row: AiSettingsRow): AiProviderSettings => ({
@@ -40,7 +49,8 @@ const toProviderSettings = (row: AiSettingsRow): AiProviderSettings => ({
   model: row.model,
   apiKey: row.api_key,
   localProvider: row.local_provider === 1,
-  enabled: row.enabled === 1
+  enabled: row.enabled === 1,
+  metadataPrompt: storedMetadataPrompt(row.metadata_prompt)
 })
 
 export type AiSettingsRepositoryShape = {
@@ -60,16 +70,16 @@ const makeAiSettingsRepository = Effect.gen(function* () {
   const { connection } = yield* SqliteDatabase
   const providerPolicy = yield* AiProviderPolicy
   const select = connection.query<AiSettingsRow, []>(`
-    SELECT base_url, model, api_key, local_provider, enabled
+    SELECT base_url, model, api_key, local_provider, enabled, metadata_prompt
     FROM ai_settings
     WHERE id = 1
   `)
   const updateRow = connection.query<
     never,
-    [string, string, string | null, number, number, string]
+    [string, string, string | null, number, number, string, string]
   >(`
     UPDATE ai_settings
-    SET base_url = ?, model = ?, api_key = ?, local_provider = ?, enabled = ?, updated_at = ?
+    SET base_url = ?, model = ?, api_key = ?, local_provider = ?, enabled = ?, metadata_prompt = ?, updated_at = ?
     WHERE id = 1
   `)
 
@@ -127,7 +137,10 @@ const makeAiSettingsRepository = Effect.gen(function* () {
       model: (patch.model ?? current.model).trim(),
       api_key: apiKey,
       local_provider: localProvider ? 1 : 0,
-      enabled: patch.enabled === undefined ? current.enabled : patch.enabled ? 1 : 0
+      enabled: patch.enabled === undefined ? current.enabled : patch.enabled ? 1 : 0,
+      metadata_prompt: storedMetadataPrompt(
+        patch.metadataPrompt ?? current.metadata_prompt
+      )
     }
 
     yield* Effect.try({
@@ -138,6 +151,7 @@ const makeAiSettingsRepository = Effect.gen(function* () {
           next.api_key,
           next.local_provider,
           next.enabled,
+          next.metadata_prompt,
           new Date().toISOString()
         ),
       catch: () => requestFailure("AI settings could not be saved.")

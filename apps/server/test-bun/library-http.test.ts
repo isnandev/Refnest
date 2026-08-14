@@ -104,6 +104,20 @@ describe("library over HTTP", () => {
           )
           expect(listed.map((item) => item.id)).toStrictEqual([reference.id])
 
+          const searchedResponse = yield* Effect.promise(() =>
+            handler(
+              jsonRequest(
+                "GET",
+                `/references?workspaceId=${workspace.id}&query=${encodeURIComponent("#101010")}`
+              )
+            )
+          )
+          const searched = yield* decodeJson(
+            Schema.Array(InspirationReference),
+            searchedResponse
+          )
+          expect(searched.map((item) => item.id)).toStrictEqual([reference.id])
+
           const updatedResponse = yield* Effect.promise(() =>
             handler(
               jsonRequest("PATCH", `/references/${reference.id}`, {

@@ -320,7 +320,7 @@ is worth deciding once rather than drifting into.
 
 ## Interface surface
 
-A **Network** section on the existing Settings page, plus a shell indicator.
+A **Network** section in the Settings modal, plus a shell indicator.
 
 **This device** — a toggle to share on the local network, with a plain statement
 that traffic is unencrypted; the port and the list of reachable addresses; "Add
