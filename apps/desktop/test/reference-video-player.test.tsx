@@ -19,6 +19,7 @@ describe("reference video player", () => {
     expect(markup).toContain('autoPlay=""')
     expect(markup).toContain('muted=""')
     expect(markup).toContain('playsInline=""')
+    expect(markup).toContain('preload="metadata"')
     expect(markup).toContain('aria-label="Video player for Product demo"')
   })
 })

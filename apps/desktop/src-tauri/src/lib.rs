@@ -1,5 +1,6 @@
 mod commands;
 mod endpoint;
+mod media_protocol;
 mod proxy;
 mod sidecar;
 
@@ -30,6 +31,17 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
+        .register_asynchronous_uri_scheme_protocol(
+            "refnest-media",
+            |context, request, responder| {
+                media_protocol::respond(
+                    context.app_handle().clone(),
+                    context.webview_label(),
+                    request,
+                    responder,
+                );
+            },
+        )
         .setup(|app| {
             #[cfg(target_os = "windows")]
             apply_vibrancy(app);

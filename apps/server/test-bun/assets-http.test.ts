@@ -99,6 +99,31 @@ describe("authenticated reference asset delivery", () => {
             new Uint8Array(yield* Effect.promise(() => delivered.arrayBuffer()))
           ).toStrictEqual(PNG_BYTES)
 
+          const rangeRequest = authenticatedJsonRequest("GET", assetUrl)
+          rangeRequest.headers.set("range", "bytes=2-5")
+          const ranged = yield* Effect.promise(() => handler(rangeRequest))
+          expect(ranged.status).toBe(206)
+          expect(ranged.headers.get("accept-ranges")).toBe("bytes")
+          expect(ranged.headers.get("content-range")).toBe(
+            `bytes 2-5/${PNG_BYTES.byteLength}`
+          )
+          expect(ranged.headers.get("content-length")).toBe("4")
+          expect(
+            new Uint8Array(yield* Effect.promise(() => ranged.arrayBuffer()))
+          ).toStrictEqual(PNG_BYTES.slice(2, 6))
+
+          const invalidRangeRequest = authenticatedJsonRequest("GET", assetUrl)
+          invalidRangeRequest.headers.set("range", "bytes=99-100")
+          const invalidRange = yield* Effect.promise(() =>
+            handler(invalidRangeRequest)
+          )
+          expect(invalidRange.status).toBe(416)
+          expect(invalidRange.headers.get("content-range")).toBe(
+            `bytes */${PNG_BYTES.byteLength}`
+          )
+          expect((yield* Effect.promise(() => invalidRange.arrayBuffer())).byteLength)
+            .toBe(0)
+
           const preview = yield* Effect.promise(() =>
             handler(authenticatedJsonRequest("GET", reference.previewUrl ?? ""))
           )

@@ -28,9 +28,9 @@ import { useLibrarySync } from "./use-library-sync"
 import { useQuickSave } from "./use-quick-save"
 import {
   referenceVideoPath,
-  useReferenceAsset,
-  useReferenceAssets
-} from "./use-reference-assets"
+  referenceVideoUrl
+} from "./reference-video-source"
+import { useReferenceAssets } from "./use-reference-assets"
 import { useReferenceDrop } from "./use-reference-drop"
 import { useReferenceExport } from "./use-reference-export"
 import { useReferenceImport } from "./use-reference-import"
@@ -203,7 +203,10 @@ export const useReferenceLibrary = ({
       : activeItem?.id === viewerId
         ? activeItem
         : (visibleItems[viewerIndex] ?? null)
-  const viewerVideo = useReferenceAsset(referenceVideoPath(viewerItem))
+  const viewerVideo = {
+    url: referenceVideoUrl(referenceVideoPath(viewerItem)),
+    failed: false
+  } as const
 
   useLibraryShortcuts({
     enabled: viewerId === null,
