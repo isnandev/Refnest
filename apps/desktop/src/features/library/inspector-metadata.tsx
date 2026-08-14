@@ -53,9 +53,9 @@ function Section({
   readonly children: React.ReactNode
 }) {
   return (
-    <section className="mt-5">
+    <section className="mt-5 min-w-0">
       <h3 className="text-label">{title}</h3>
-      <div className="mt-2">{children}</div>
+      <div className="mt-2 min-w-0">{children}</div>
     </section>
   )
 }
@@ -121,7 +121,7 @@ export function InspectorMetadata({
 
   return (
     <>
-      <div className="mt-4 grid gap-2">
+      <div className="mt-4 grid min-w-0 gap-2">
         <EditableProperty
           label="Title"
           value={item.title}
@@ -177,9 +177,9 @@ export function InspectorMetadata({
             {item.tags.map((tag) => (
               <span
                 key={tag}
-                className="flex h-7 items-center gap-1 rounded-full border bg-surface-muted pl-2.5 pr-1 text-caption"
+                className="flex h-7 max-w-full min-w-0 items-center gap-1 rounded-full border bg-surface-muted pl-2.5 pr-1 text-caption"
               >
-                {tag}
+                <span className="truncate">{tag}</span>
                 <button
                   type="button"
                   aria-label={`Remove tag ${tag}`}
@@ -232,8 +232,8 @@ export function InspectorMetadata({
       <Section title="Folders">
         {currentFolder !== undefined && (
           <div className="mb-2 flex flex-wrap gap-1.5">
-            <span className="flex h-7 items-center gap-1 rounded-full border border-lime bg-surface-muted pl-2.5 pr-1 text-caption">
-              {currentFolder.label}
+            <span className="flex h-7 max-w-full min-w-0 items-center gap-1 rounded-full border border-lime bg-surface-muted pl-2.5 pr-1 text-caption">
+              <span className="truncate">{currentFolder.label}</span>
               <button
                 type="button"
                 aria-label={`Remove from ${currentFolder.label}`}
@@ -248,12 +248,12 @@ export function InspectorMetadata({
         )}
 
         {movingFolder ? (
-          <label className="flex h-9 w-full items-center rounded-sm border bg-card px-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background">
+          <label className="flex h-9 w-full min-w-0 items-center rounded-sm border bg-card px-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background">
             <span className="sr-only">Folder</span>
             <select
               autoFocus
               value={item.folderId ?? ""}
-              className="w-full cursor-pointer appearance-none bg-transparent text-body-sm outline-none"
+              className="w-full min-w-0 cursor-pointer appearance-none bg-transparent text-body-sm outline-none"
               onChange={(event) => void moveToFolder(event.currentTarget.value)}
               onBlur={() => setMovingFolder(false)}
             >
