@@ -1,5 +1,5 @@
 /** Reported by `GET /health` so the shell and the UI can confirm which sidecar build is running. */
-export const SERVER_VERSION = "0.6.0"
+export const SERVER_VERSION = "0.7.0"
 
 /**
  * The sidecar always ships as a Bun binary, but some unit tests run under Node,
