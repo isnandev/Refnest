@@ -24,6 +24,7 @@ import {
   resolveContainedFile
 } from "../../persistence/path-policy"
 import { SqliteDatabase } from "../../persistence/sqlite-database"
+import { VideoThumbnailer } from "../converter/video-thumbnailer"
 import { FolderService } from "../folders/folder-service"
 import { matchesSmartFolder } from "../smart-folders/smart-folder-rules"
 import { MAX_CAPTURE_OUTPUT_BYTES } from "../quick-save/capture-limits"
@@ -152,6 +153,7 @@ const makeReferenceService = Effect.gen(function* () {
   const { connection } = yield* SqliteDatabase
   const folders = yield* FolderService
   const appPaths = yield* AppPaths
+  const videoThumbnails = yield* VideoThumbnailer
 
   const referenceColumns = `
     r.id,
@@ -410,6 +412,7 @@ const makeReferenceService = Effect.gen(function* () {
     )
     const now = new Date().toISOString()
     const id = ReferenceId.make(`reference_${crypto.randomUUID()}`)
+    let ownedPreviewPath = input.previewPath
     const cleanup = Effect.sync(() => {
       try {
         deleteReference.run(id)
@@ -421,9 +424,9 @@ const makeReferenceService = Effect.gen(function* () {
       } catch {
         // Never broaden cleanup when the candidate itself is not contained.
       }
-      if (input.previewPath !== null) {
+      if (ownedPreviewPath !== null) {
         try {
-          removeContainedFile(appPaths.previewsDirectory, input.previewPath)
+          removeContainedFile(appPaths.previewsDirectory, ownedPreviewPath)
         } catch {
           // Never broaden cleanup when the candidate itself is not contained.
         }
@@ -472,7 +475,7 @@ const makeReferenceService = Effect.gen(function* () {
         )
       }
 
-      const decoded = yield* decodeCapturedReference(
+      const candidate = yield* decodeCapturedReference(
         input,
         files.asset.path,
         files.preview?.path ?? null,
@@ -485,6 +488,32 @@ const makeReferenceService = Effect.gen(function* () {
           )
         )
       )
+
+      if (candidate.kind === "video" && candidate.previewPath === null) {
+        const generated = yield* videoThumbnails
+          .generate(files.asset.path, id)
+          .pipe(Effect.either)
+        if (generated._tag === "Right") {
+          ownedPreviewPath = generated.right
+        }
+      }
+
+      const decoded =
+        ownedPreviewPath === candidate.previewPath
+          ? candidate
+          : yield* decodeCapturedReference(
+              input,
+              files.asset.path,
+              ownedPreviewPath,
+              files.asset.size
+            ).pipe(
+              Effect.mapError(() =>
+                operationFailure(
+                  "create",
+                  "The generated video thumbnail did not match the required boundary."
+                )
+              )
+            )
 
       yield* Effect.try({
         try: () =>
