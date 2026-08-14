@@ -16,6 +16,10 @@ export const WINDOW_HEIGHT_MIN = 540
 export const ThemePreference = Schema.Literal("system", "light", "dark")
 export type ThemePreference = typeof ThemePreference.Type
 
+/** Cap for social video downloads. yt-dlp still falls through to whatever exists. */
+export const VideoDownloadResolution = Schema.Literal(720, 1080, 1440, 2160)
+export type VideoDownloadResolution = typeof VideoDownloadResolution.Type
+
 export const AppSection = Schema.Literal(
   "overview",
   "new-note",
@@ -154,6 +158,7 @@ export class DesktopSettings extends Schema.Class<DesktopSettings>(
   themePreference: ThemePreference,
   autoCollapseSidebar: Schema.Boolean,
   autoConvertImports: Schema.Boolean,
+  videoDownloadResolution: VideoDownloadResolution,
   reduceMotion: Schema.Boolean,
   sidebarBackgroundOpacity: SidebarBackgroundOpacity,
   sidebarWidth: SidebarWidth,
@@ -171,6 +176,7 @@ export class UpdateDesktopSettings extends Schema.Class<UpdateDesktopSettings>(
   themePreference: Schema.optional(ThemePreference),
   autoCollapseSidebar: Schema.optional(Schema.Boolean),
   autoConvertImports: Schema.optional(Schema.Boolean),
+  videoDownloadResolution: Schema.optional(VideoDownloadResolution),
   reduceMotion: Schema.optional(Schema.Boolean),
   sidebarBackgroundOpacity: Schema.optional(SidebarBackgroundOpacity),
   sidebarWidth: Schema.optional(SidebarWidth),
@@ -202,6 +208,7 @@ export const DEFAULT_DESKTOP_SETTINGS = new DesktopSettings({
   themePreference: "system",
   autoCollapseSidebar: true,
   autoConvertImports: true,
+  videoDownloadResolution: 1080,
   reduceMotion: false,
   sidebarBackgroundOpacity: 60,
   sidebarWidth: 272,
@@ -236,6 +243,8 @@ export const mergeDesktopSettings = (
     autoCollapseSidebar:
       patch.autoCollapseSidebar ?? current.autoCollapseSidebar,
     autoConvertImports: patch.autoConvertImports ?? current.autoConvertImports,
+    videoDownloadResolution:
+      patch.videoDownloadResolution ?? current.videoDownloadResolution,
     reduceMotion: patch.reduceMotion ?? current.reduceMotion,
     sidebarBackgroundOpacity:
       patch.sidebarBackgroundOpacity ?? current.sidebarBackgroundOpacity,
@@ -264,6 +273,7 @@ const StoredDesktopSettings = Schema.Struct({
   themePreference: Schema.optional(ThemePreference),
   autoCollapseSidebar: Schema.optional(Schema.Boolean),
   autoConvertImports: Schema.optional(Schema.Boolean),
+  videoDownloadResolution: Schema.optional(VideoDownloadResolution),
   reduceMotion: Schema.optional(Schema.Boolean),
   sidebarBackgroundOpacity: Schema.optional(SidebarBackgroundOpacity),
   sidebarWidth: Schema.optional(SidebarWidth),
@@ -305,6 +315,8 @@ export const decodeStoredDesktopSettings = (
       document.autoCollapseSidebar ?? fallback.autoCollapseSidebar,
     autoConvertImports:
       document.autoConvertImports ?? fallback.autoConvertImports,
+    videoDownloadResolution:
+      document.videoDownloadResolution ?? fallback.videoDownloadResolution,
     reduceMotion: document.reduceMotion ?? fallback.reduceMotion,
     sidebarBackgroundOpacity:
       document.sidebarBackgroundOpacity ?? fallback.sidebarBackgroundOpacity,

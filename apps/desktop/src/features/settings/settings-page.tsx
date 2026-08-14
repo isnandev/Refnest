@@ -3,12 +3,14 @@ import {
   UpdateAiSettings,
   UpdateDesktopSettings,
   type DesktopSettings,
-  type ThemePreference
+  type ThemePreference,
+  type VideoDownloadResolution
 } from "@refnest/contracts"
 import {
   Accessibility,
   ArrowLeft,
   Check,
+  Clapperboard,
   Monitor,
   Moon,
   Replace,
@@ -40,6 +42,16 @@ const THEME_OPTIONS: readonly {
   { value: "system", label: "System", icon: Monitor },
   { value: "light", label: "Light", icon: Sun },
   { value: "dark", label: "Dark", icon: Moon }
+]
+
+const RESOLUTION_OPTIONS: readonly {
+  value: VideoDownloadResolution
+  label: string
+}[] = [
+  { value: 720, label: "720p" },
+  { value: 1080, label: "1080p" },
+  { value: 1440, label: "1440p" },
+  { value: 2160, label: "4K" }
 ]
 
 /** The one destination for app-wide preferences and local integrations. */
@@ -232,6 +244,46 @@ export function SettingsPage({
                     )
                   }
                 />
+              </SettingRow>
+
+              <SettingRow
+                icon={Clapperboard}
+                title="Default download resolution"
+                description="Preferred height for YouTube and other social video captures. If that quality is not available, the next best stream is saved instead."
+                separated
+              >
+                <div
+                  className="flex flex-wrap gap-2"
+                  role="group"
+                  aria-label="Default download resolution"
+                >
+                  {RESOLUTION_OPTIONS.map((option) => {
+                    const selected =
+                      option.value === settings.videoDownloadResolution
+
+                    return (
+                      <Button
+                        key={option.value}
+                        type="button"
+                        variant="choice"
+                        size="sm"
+                        aria-pressed={selected}
+                        onClick={() =>
+                          onSettingChange(
+                            new UpdateDesktopSettings({
+                              videoDownloadResolution: option.value
+                            })
+                          )
+                        }
+                      >
+                        {selected ? (
+                          <Check className="text-lime" aria-hidden="true" />
+                        ) : null}
+                        {option.label}
+                      </Button>
+                    )
+                  })}
+                </div>
               </SettingRow>
             </Card>
           </section>

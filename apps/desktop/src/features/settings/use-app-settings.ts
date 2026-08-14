@@ -15,6 +15,7 @@ export type AppSettings = Pick<
   DesktopSettings,
   | "autoCollapseSidebar"
   | "autoConvertImports"
+  | "videoDownloadResolution"
   | "reduceMotion"
   | "sidebarBackgroundOpacity"
 >
@@ -182,6 +183,8 @@ export const useAppSettings = () => {
         themePreference: DEFAULT_DESKTOP_SETTINGS.themePreference,
         autoCollapseSidebar: DEFAULT_DESKTOP_SETTINGS.autoCollapseSidebar,
         autoConvertImports: DEFAULT_DESKTOP_SETTINGS.autoConvertImports,
+        videoDownloadResolution:
+          DEFAULT_DESKTOP_SETTINGS.videoDownloadResolution,
         reduceMotion: DEFAULT_DESKTOP_SETTINGS.reduceMotion,
         sidebarBackgroundOpacity:
           DEFAULT_DESKTOP_SETTINGS.sidebarBackgroundOpacity

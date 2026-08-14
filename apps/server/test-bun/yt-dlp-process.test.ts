@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test"
 import { Effect } from "effect"
-import { runYtDlpProcess } from "../src/features/quick-save/yt-dlp-downloader"
+import {
+  runYtDlpProcess,
+  YT_DLP_FORMAT,
+  ytDlpFormatForHeight
+} from "../src/features/quick-save/yt-dlp-downloader"
 
 describe("yt-dlp child-process boundary", () => {
   it("captures bounded diagnostics and terminates a timed-out child", async () => {
@@ -42,5 +46,21 @@ describe("yt-dlp child-process boundary", () => {
     if (result._tag === "Left") {
       expect(result.left.reason).toContain("output limit")
     }
+  })
+
+  it("prefers merged 1080p and only then unconstrained best", () => {
+    const steps = YT_DLP_FORMAT.split("/")
+    const lastCapped = steps.findLastIndex((step) => step.includes("height<=1080"))
+    const firstUncapped = steps.findIndex((step) => !step.includes("height<=1080"))
+    expect(lastCapped).toBeGreaterThanOrEqual(0)
+    expect(firstUncapped).toBeGreaterThan(lastCapped)
+    expect(steps.at(-1)).toBe("best")
+  })
+
+  it("caps the format selector at the requested height", () => {
+    const steps = ytDlpFormatForHeight(2160).split("/")
+    expect(steps.every((step) => !step.includes("height<=1080"))).toBe(true)
+    expect(steps.filter((step) => step.includes("height<=2160")).length).toBe(4)
+    expect(steps.at(-1)).toBe("best")
   })
 })

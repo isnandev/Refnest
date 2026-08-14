@@ -112,7 +112,9 @@ export const applicationServicesLive = (
     Layer.provide(outboundPolicy)
   )
   const ytDlp = YtDlpDownloaderLive.pipe(
-    Layer.provide(Layer.mergeAll(infrastructure, mediaDownloader, captureHttp))
+    Layer.provide(
+      Layer.mergeAll(infrastructure, mediaDownloader, captureHttp, settings)
+    )
   )
   const captureEngine =
     options.captureEngine ??

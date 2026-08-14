@@ -21,6 +21,7 @@ describe("desktop settings contracts", () => {
       const decoded = yield* Schema.decodeUnknown(DesktopSettings)(encoded)
 
       expect(decoded.sidebarBackgroundOpacity).toBe(60)
+      expect(decoded.videoDownloadResolution).toBe(1080)
       expect(decoded.windowPlacement).toBeNull()
     }))
 
@@ -137,6 +138,7 @@ describe("stored settings migration", () => {
 
     expect(migrated.themePreference).toBe("light")
     expect(migrated.sidebarWidth).toBe(DEFAULT_DESKTOP_SETTINGS.sidebarWidth)
+    expect(migrated.videoDownloadResolution).toBe(1080)
     expect(selectedWorkspaceId(migrated)).toBeNull()
   })
 

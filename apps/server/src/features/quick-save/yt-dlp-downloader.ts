@@ -1,4 +1,8 @@
-import type { ReferenceKind } from "@refnest/contracts"
+import {
+  DEFAULT_DESKTOP_SETTINGS,
+  type ReferenceKind,
+  type VideoDownloadResolution
+} from "@refnest/contracts"
 import { Context, Effect, Layer, Ref, Schema } from "effect"
 import { chmod } from "node:fs/promises"
 import { existsSync, readdirSync } from "node:fs"
@@ -23,6 +27,7 @@ import {
   MAX_YT_DLP_PROCESS_MILLIS
 } from "./capture-limits"
 import { MediaDownloader } from "./media-download"
+import { SettingsRepository } from "../settings/settings-repository"
 
 const MAX_YT_DLP_BINARY_BYTES = 64 * 1_024 * 1_024
 const MAX_YT_DLP_CHECKSUM_BYTES = 2 * 1_024 * 1_024
@@ -248,12 +253,26 @@ export const runYtDlpProcess = (
       }).pipe(Effect.ignore)
   )
 
+/**
+ * Prefer a merged MP4 at `height` or below. Combined `best[ext=mp4]` on YouTube
+ * is usually 360p/720p because 1080p+ is video-only. Fall through to whatever
+ * the extractor can actually serve.
+ */
+export const ytDlpFormatForHeight = (height: VideoDownloadResolution) =>
+  `bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${height}]+bestaudio/best[height<=${height}][ext=mp4]/best[height<=${height}]/best[ext=mp4]/best`
+
+export const YT_DLP_FORMAT = ytDlpFormatForHeight(
+  DEFAULT_DESKTOP_SETTINGS.videoDownloadResolution
+)
+
 const commonArgs = () => {
   const cookies = process.env["REFNEST_YT_DLP_COOKIES_FROM_BROWSER"]?.trim()
   return [
     "--no-config",
     "--no-playlist",
     "--no-warnings",
+    "--merge-output-format",
+    "mp4",
     ...(cookies === undefined || cookies.length === 0
       ? []
       : ["--cookies-from-browser", cookies])
@@ -278,6 +297,7 @@ const makeYtDlpDownloader = Effect.gen(function* () {
   const appPaths = yield* AppPaths
   const mediaDownloader = yield* MediaDownloader
   const captureHttp = yield* CaptureHttpClient
+  const settings = yield* SettingsRepository
   const cachedExecutable = yield* Ref.make<string | null>(null)
   const binaryMutex = yield* Effect.makeSemaphore(1)
 
@@ -382,11 +402,17 @@ const makeYtDlpDownloader = Effect.gen(function* () {
         ).path,
       catch: () => failure("The social capture output name is not safe.")
     })
+    const resolution = yield* settings.get().pipe(
+      Effect.map((current) => current.videoDownloadResolution),
+      Effect.catchAll(() =>
+        Effect.succeed(DEFAULT_DESKTOP_SETTINGS.videoDownloadResolution)
+      )
+    )
     const downloadProcess = yield* runYtDlpProcess(executable, [
       ...commonArgs(),
       "--quiet",
       "--format",
-      "best[ext=mp4]/best",
+      ytDlpFormatForHeight(resolution),
       "--output",
       outputTemplate,
       "--print",
