@@ -171,6 +171,8 @@ export function ReferenceLibrary({
       : library.references.status === "failed"
         ? library.references.message
         : null
+  const viewerOpen = viewerItem !== null
+  const displayedViewerItem = viewerItem ?? activeItem
   const openQuickSave = () => {
     quickSave.clearActionError()
     setQuickSaveOpen(true)
@@ -311,30 +313,63 @@ export function ReferenceLibrary({
             <main
               id="main-content"
               tabIndex={-1}
-              className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-none bg-stage"
+              className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-stage"
             >
-              <ReferenceGrid
-                items={visibleItems}
-                activeId={activeItem?.id ?? null}
-                selectedIds={selection.ids}
-                selectionMode={selection.active}
-                view={view}
-                imageUrls={assets.urls}
-                failedImages={assets.failed}
-                loading={
-                  workspaceState.status === "loading" ||
-                  library.references.status === "loading"
-                }
-                error={referencesError}
-                onRetry={() => void library.refreshReferences()}
-                onOpen={openReference}
-                onToggleSelect={(item) => selection.toggle(item.id)}
-                onExtendSelect={(item) => selection.extendTo(item.id)}
-              />
+              <div
+                className={cn(
+                  "library-grid-scroll h-full min-h-0 overflow-y-auto overscroll-none",
+                  viewerOpen && "is-obscured"
+                )}
+                aria-hidden={viewerOpen}
+                inert={viewerOpen}
+              >
+                <ReferenceGrid
+                  items={visibleItems}
+                  activeId={activeItem?.id ?? null}
+                  selectedIds={selection.ids}
+                  selectionMode={selection.active}
+                  view={view}
+                  imageUrls={assets.urls}
+                  failedImages={assets.failed}
+                  loading={
+                    workspaceState.status === "loading" ||
+                    library.references.status === "loading"
+                  }
+                  error={referencesError}
+                  onRetry={() => void library.refreshReferences()}
+                  onOpen={openReference}
+                  onToggleSelect={(item) => selection.toggle(item.id)}
+                  onExtendSelect={(item) => selection.extendTo(item.id)}
+                />
 
-              <p className="sr-only" aria-live="polite">
-                Showing {visibleItems.length} references
-              </p>
+                <p className="sr-only" aria-live="polite">
+                  Showing {visibleItems.length} references
+                </p>
+              </div>
+
+              <ReferenceViewer
+                open={viewerOpen}
+                item={displayedViewerItem}
+                imageUrl={
+                  displayedViewerItem === null
+                    ? undefined
+                    : assets.urls.get(displayedViewerItem.id)
+                }
+                imageFailed={
+                  displayedViewerItem !== null &&
+                  assets.failed.has(displayedViewerItem.id)
+                }
+                videoUrl={viewerVideo.url}
+                videoFailed={viewerVideo.failed}
+                index={viewerIndex}
+                total={visibleItems.length}
+                onOpenChange={(open) => {
+                  if (!open) closeViewer()
+                }}
+                onPrevious={showPreviousReference}
+                onNext={showNextReference}
+                onShowDetails={() => setInspectorOpen(true)}
+              />
             </main>
 
             <SidebarResizeHandle
@@ -419,27 +454,6 @@ export function ReferenceLibrary({
           </div>
         </section>
       </div>
-
-      <ReferenceViewer
-        item={viewerItem}
-        imageUrl={
-          viewerItem === null ? undefined : assets.urls.get(viewerItem.id)
-        }
-        imageFailed={viewerItem !== null && assets.failed.has(viewerItem.id)}
-        videoUrl={viewerVideo.url}
-        videoFailed={viewerVideo.failed}
-        index={viewerIndex}
-        total={visibleItems.length}
-        onOpenChange={(open) => {
-          if (!open) closeViewer()
-        }}
-        onPrevious={showPreviousReference}
-        onNext={showNextReference}
-        onShowDetails={() => {
-          closeViewer()
-          setInspectorOpen(true)
-        }}
-      />
 
       {/*
         Both floating bars share one bottom stack, so an import that starts

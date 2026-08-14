@@ -47,3 +47,18 @@ export const resolveMcpStdioArtifact = () => {
     executablePath: `${buildPath}${process.platform === "win32" ? ".exe" : ""}`
   } as const
 }
+
+/** Resolves the target-qualified FFmpeg binary bundled for video thumbnails. */
+export const resolveFfmpegArtifact = () => {
+  const hostTriple = resolveHostTriple()
+  const buildPath = join(
+    repoRoot,
+    "apps/desktop/src-tauri/binaries",
+    `refnest-ffmpeg-${hostTriple}`
+  )
+
+  return {
+    buildPath,
+    executablePath: `${buildPath}${process.platform === "win32" ? ".exe" : ""}`
+  } as const
+}

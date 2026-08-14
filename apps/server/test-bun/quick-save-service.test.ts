@@ -24,6 +24,7 @@ import {
 } from "../src/features/quick-save/quick-save-service"
 import { QuickSaveSchedulerLive } from "../src/features/quick-save/quick-save-scheduler"
 import { ReferenceService, ReferenceServiceLive } from "../src/features/references/reference-service"
+import { VideoThumbnailerLive } from "../src/features/converter/video-thumbnailer"
 import {
   WorkspaceRepository,
   WorkspaceRepositoryLive
@@ -77,8 +78,11 @@ const quickSaveTestLayer = (
   const folders = FolderServiceLive.pipe(
     Layer.provide(Layer.merge(infrastructure, workspaces))
   )
+  const videoThumbnailer = VideoThumbnailerLive.pipe(
+    Layer.provide(infrastructure)
+  )
   const references = ReferenceServiceLive.pipe(
-    Layer.provide(Layer.merge(infrastructure, folders))
+    Layer.provide(Layer.mergeAll(infrastructure, folders, videoThumbnailer))
   )
   const aiProviderPolicy = AiProviderPolicyLive.pipe(
     Layer.provide(FakeOutboundUrlPolicy)

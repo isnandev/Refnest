@@ -223,6 +223,7 @@ export const useReferenceLibrary = ({
     (selectionTarget: LibrarySelection) => {
       setActiveSelection(selectionTarget)
       setActiveItem(null)
+      setViewerId(null)
       setActiveFilter("All")
       setMobileSidebarOpen(false)
       selection.clear()
@@ -230,7 +231,7 @@ export const useReferenceLibrary = ({
     [selection.clear]
   )
 
-  /** Opening a reference shows the image; the inspector stays where it was. */
+  /** Opening a reference promotes its media into the library canvas. */
   const openReference = useCallback(
     (item: InspirationReference) => {
       setActiveItem(item)
@@ -284,7 +285,10 @@ export const useReferenceLibrary = ({
 
   const trashActive = useCallback(async () => {
     if (activeItem === null) return
-    if (await library.removeReference(activeItem.id)) setActiveItem(null)
+    if (await library.removeReference(activeItem.id)) {
+      setActiveItem(null)
+      setViewerId(null)
+    }
   }, [activeItem, library.removeReference])
 
   const restoreActive = useCallback(async () => {
@@ -292,6 +296,7 @@ export const useReferenceLibrary = ({
       await updateActive(new UpdateInspirationReference({ status: "active" }))
     ) {
       setActiveItem(null)
+      setViewerId(null)
     }
   }, [updateActive])
 
@@ -382,6 +387,7 @@ export const useReferenceLibrary = ({
     const result = await library.removeReferences([...ids])
     if (result.succeeded > 0 && activeItem !== null && ids.has(activeItem.id)) {
       setActiveItem(null)
+      setViewerId(null)
     }
   }, [activeItem, library.removeReferences, selection.ids])
 

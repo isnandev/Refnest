@@ -55,6 +55,12 @@ downloads the official platform binary after verifying its published SHA-256
 checksum. Set `REFNEST_YT_DLP_COOKIES_FROM_BROWSER` to a browser name/profile
 accepted by `yt-dlp` when a signed-in source requires cookies.
 
+Video poster generation uses the FFmpeg executable bundled by
+`bun run sidecar:build`; `ffmpeg-static` supplies the build-host binary and
+Tauri installs it beside the RefNest sidecar. Set `REFNEST_FFMPEG_PATH` only
+when running the server directly with a different FFmpeg executable. Its GPLv3
+license and build-source notice are copied into the packaged resources.
+
 ## Commands
 
 ```bash
@@ -239,6 +245,12 @@ picker — or a drop onto the window, which Tauri reports as absolute paths —
 supplies one absolute path per request; the sidecar verifies the regular file,
 signature, size, and destination before copying it into the selected workspace
 folder. The original file is left unchanged.
+
+When a video has no poster from its source, the sidecar extracts one
+representative frame, bounds it to 1536px, and stores it as the reference
+preview. Extraction is best effort: a video with an unsupported codec still
+imports and remains playable even if no thumbnail can be generated. A
+single-file startup pass applies the same rule to videos already in the library.
 
 Pasted content uses `POST /references/paste`, which carries the bytes instead of
 a path because the clipboard has no file to point at. The same verification runs

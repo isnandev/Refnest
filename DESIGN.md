@@ -115,14 +115,15 @@ following product-level direction:
   results the palette lists. One palette carries references, folders, creation,
   settings, and workspace switching, so there is a single place to look for anything.
 - **A click opens the media, not a form.** Selecting a reference in the grid
-  raises a full-viewport viewer on a near-black canvas — the `canvas` variant of
-  the shared dialog, so the treatment stays token-backed — with the arrows
-  walking the order the grid is showing. Videos use the original asset in a
-  native player, start muted so autoplay is reliable, and retain controls for
-  pause and unmute. The inspector is no longer a
-  consequence of clicking: it starts collapsed and opens only from the titlebar
-  control or the viewer's `Details` button. A vault is for looking at imagery,
-  and the metadata is a question the user asks rather than one the app answers
+  replaces the grid inside the library canvas with a near-black viewer rather
+  than raising a modal over the app. The grid stays mounted underneath so its
+  scroll position and loaded thumbnails survive the short spatial transition,
+  and arrows walk the order the grid is showing. Videos use the original asset
+  in a native player, start muted so autoplay is reliable, and retain controls
+  for pause and unmute. The inspector is no longer a consequence of clicking:
+  it starts collapsed and opens beside the viewer only from the titlebar control
+  or the viewer's `Details` button. A vault is for looking at imagery, and the
+  metadata is a question the user asks rather than one the app answers
   unprompted.
 - **Selection is a gesture; the bulk bar is its only new chrome.** Press and hold
   a reference to start a selection, then click to add and remove, `Shift`-click
@@ -199,6 +200,13 @@ following product-level direction:
   which the library already built; `Quality` renders the original for images,
   which is sharper on a large tile and heavier to load. A video or PDF has no
   original a browser would draw, so it keeps its preview under both.
+- **A video makes its poster once.** When a captured or imported video has
+  no source-provided image, the sidecar asks the bundled FFmpeg executable for
+  one representative frame, bounds it to the same 1536px preview edge, and
+  stores the JPEG beside other previews. Grid cards keep loading an image rather
+  than downloading whole videos. Extraction failure leaves the video usable and
+  does not turn a codec limitation into a failed import. One background pass at
+  startup applies the same rule to older video rows without delaying the API.
 - **A rating is a mark, and zero is unrated.** Five stars, filled in lime as a
   mark rather than a fill that carries text, and clicking the star a reference
   already holds clears it — otherwise a rating could be raised but never taken

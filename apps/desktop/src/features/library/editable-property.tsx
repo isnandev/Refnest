@@ -109,7 +109,7 @@ export function EditableProperty({
     } as const
 
     return (
-      <div className="grid gap-1.5">
+      <div className="grid min-w-0 max-w-full gap-1.5">
         <label htmlFor={fieldId} className="sr-only">
           {label}
         </label>
@@ -147,7 +147,7 @@ export function EditableProperty({
       title={disabled ? undefined : `Double-click to edit ${label.toLowerCase()}`}
       aria-label={`${label}: ${value.length === 0 ? "empty" : value}. Edit`}
       className={cn(
-        "-mx-1 block w-full cursor-text rounded-sm px-1 py-0.5 text-left transition-colors hover:bg-surface-hover disabled:cursor-default disabled:hover:bg-transparent",
+        "-mx-1 block w-full min-w-0 max-w-full cursor-text overflow-hidden rounded-sm px-1 py-0.5 text-left transition-colors hover:bg-surface-hover disabled:cursor-default disabled:hover:bg-transparent",
         className
       )}
       // A keyboard activation reports no click count, and is the way in that

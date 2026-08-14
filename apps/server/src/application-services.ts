@@ -15,6 +15,11 @@ import { AiSettingsRepositoryLive } from "./features/ai/ai-settings-repository"
 import { OpenAiCompatibleClientLive } from "./features/ai/openai-compatible-client"
 import { ImageCodecLive } from "./features/converter/image-codec"
 import { ImageConverterLive } from "./features/converter/image-converter-service"
+import { VideoThumbnailBackfillLive } from "./features/converter/video-thumbnail-backfill"
+import {
+  type VideoThumbnailer,
+  VideoThumbnailerLive
+} from "./features/converter/video-thumbnailer"
 import { FolderServiceLive } from "./features/folders/folder-service"
 import { BrowserCaptureLive } from "./features/quick-save/browser-capture"
 import {
@@ -61,6 +66,7 @@ export type ApplicationServicesOptions = {
   readonly outboundUrlPolicy?: Layer.Layer<OutboundUrlPolicy>
   readonly quickSaveScheduler?: Layer.Layer<QuickSaveScheduler>
   readonly remoteLibraryTransport?: Layer.Layer<RemoteLibraryTransport>
+  readonly videoThumbnailer?: Layer.Layer<VideoThumbnailer>
 }
 
 /** Builds the shared local application graph for HTTP and tests. */
@@ -78,8 +84,14 @@ export const applicationServicesLive = (
   const folders = FolderServiceLive.pipe(
     Layer.provide(Layer.merge(infrastructure, workspaces))
   )
+  const videoThumbnailer = (
+    options.videoThumbnailer ?? VideoThumbnailerLive
+  ).pipe(Layer.provide(infrastructure))
   const references = ReferenceServiceLive.pipe(
-    Layer.provide(Layer.merge(infrastructure, folders))
+    Layer.provide(Layer.mergeAll(infrastructure, folders, videoThumbnailer))
+  )
+  const videoThumbnailBackfill = VideoThumbnailBackfillLive.pipe(
+    Layer.provide(Layer.merge(infrastructure, videoThumbnailer))
   )
   // One codec instance: Effect memoises the layer, so the wasm modules are
   // compiled once and shared by imports and the converter feature.
@@ -189,6 +201,8 @@ export const applicationServicesLive = (
     environments,
     workspaces,
     folders,
+    videoThumbnailer,
+    videoThumbnailBackfill,
     references,
     referenceImports,
     referenceExports,

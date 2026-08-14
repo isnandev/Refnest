@@ -4,6 +4,8 @@ target/
 
 # Compiled Bun sidecar, produced by `bun run sidecar:build`
 apps/desktop/src-tauri/binaries/
+# Third-party notices copied beside packaged resources by the same build.
+apps/desktop/src-tauri/resources/ffmpeg/
 
 *.log
 .DS_Store
