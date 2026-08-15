@@ -11,8 +11,10 @@ import { describe, expect, it } from "vitest"
 
 import {
   captureHost,
+  captureNotificationCopy,
   captureProgress,
   captureStatuses,
+  importNotificationCopy,
   isActiveCapture,
   settledCaptureJobs
 } from "@/features/library/capture-job"
@@ -96,6 +98,51 @@ describe("captureProgress", () => {
 
   it("marks a failed capture as danger", () => {
     expect(captureProgress(job("capture_1", "failed")).tone).toBe("danger")
+  })
+})
+
+describe("captureNotificationCopy", () => {
+  it("uses the host as the body and the stage as the title", () => {
+    expect(captureNotificationCopy(job("capture_1", "completed"))).toEqual({
+      title: "Saved",
+      body: "example.com"
+    })
+    expect(
+      captureNotificationCopy(
+        job("capture_1", "completed", { warning: "The provider timed out." })
+      )
+    ).toEqual({
+      title: "Saved without metadata",
+      body: "example.com"
+    })
+  })
+
+  it("prefers the error text on a failed capture", () => {
+    expect(
+      captureNotificationCopy(
+        job("capture_1", "failed", { error: "The page never loaded." })
+      )
+    ).toEqual({
+      title: "Capture failed",
+      body: "The page never loaded."
+    })
+  })
+})
+
+describe("importNotificationCopy", () => {
+  it("summarises a clean run, a mixed run, and a total miss", () => {
+    expect(importNotificationCopy(1, 0)).toEqual({
+      title: "Imported 1 file",
+      body: "Saved to the library."
+    })
+    expect(importNotificationCopy(2, 1)).toEqual({
+      title: "Import finished",
+      body: "Imported 2; 1 file failed."
+    })
+    expect(importNotificationCopy(0, 3)).toEqual({
+      title: "Import failed",
+      body: "3 files could not be imported."
+    })
   })
 })
 

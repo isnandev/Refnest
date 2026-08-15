@@ -1,7 +1,7 @@
 //! The whole IPC surface: wait for the sidecar, then forward one request.
 
 use serde::Serialize;
-use tauri::State;
+use tauri::{AppHandle, Manager, Runtime, State};
 
 use crate::endpoint::{ActiveEndpoint, LOCAL_ENVIRONMENT_ID};
 use crate::proxy::{ApiProxy, ApiRequest, ApiResponse};
@@ -77,6 +77,61 @@ pub fn sidecar_ready(sidecar: State<'_, Sidecar>) -> bool {
 #[tauri::command]
 pub async fn mcp_connection_info(sidecar: State<'_, Sidecar>) -> Result<McpConnectionInfo, String> {
     Ok(mcp_connection(sidecar.endpoint().await?))
+}
+
+/// Local OS toast. A body-click focuses the main window — the JS plugin cannot.
+#[tauri::command]
+pub fn show_desktop_notification<R: Runtime>(
+    app: AppHandle<R>,
+    title: String,
+    body: String,
+) {
+    let identifier = app.config().identifier.clone();
+
+    std::thread::spawn(move || {
+        let mut notification = notify_rust::Notification::new();
+        notification.summary(&title).body(&body);
+
+        #[cfg(target_os = "windows")]
+        {
+            if let Ok(exe) = tauri::utils::platform::current_exe() {
+                if let Some(dir) = exe.parent() {
+                    let curr = dir.display().to_string();
+                    let sep = std::path::MAIN_SEPARATOR;
+                    if !(curr.ends_with(&format!("{sep}target{sep}debug"))
+                        || curr.ends_with(&format!("{sep}target{sep}release")))
+                    {
+                        notification.app_id(&identifier);
+                    }
+                }
+            }
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let _ = notify_rust::set_application(if tauri::is_dev() {
+                "com.apple.Terminal"
+            } else {
+                &identifier
+            });
+        }
+
+        let Ok(handle) = notification.show() else {
+            return;
+        };
+
+        let _ = handle.wait_for_response(|response: &notify_rust::NotificationResponse| {
+            if matches!(response, notify_rust::NotificationResponse::Closed(_)) {
+                return;
+            }
+
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        });
+    });
 }
 
 #[cfg(test)]

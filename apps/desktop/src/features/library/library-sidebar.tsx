@@ -1,4 +1,4 @@
-import type { Workspace } from "@refnest/contracts"
+import type { FolderId, Workspace } from "@refnest/contracts"
 import {
   Bell,
   FolderPlus,
@@ -44,6 +44,7 @@ export function LibrarySidebar({
   onOpenQuickSave,
   onImportFiles,
   onOpenCreateFolder,
+  onMoveFolder,
   onOpenConverter,
   onOpenSettings,
   onRetryNavigation,
@@ -68,6 +69,7 @@ export function LibrarySidebar({
   readonly onOpenQuickSave: () => void
   readonly onImportFiles: () => void
   readonly onOpenCreateFolder: () => void
+  readonly onMoveFolder: (folderId: FolderId, parentId: FolderId) => Promise<boolean>
   readonly onOpenConverter: () => void
   readonly onOpenSettings: () => void
   readonly onRetryNavigation: () => void
@@ -302,7 +304,10 @@ export function LibrarySidebar({
             smartFolders={smartFolders}
             collectionFolders={collectionFolders}
             activeSelection={activeSelection}
+            createDisabled={selectedWorkspace === null}
             onSelect={onSelectFolder}
+            onCreateFolder={onOpenCreateFolder}
+            onMoveFolder={onMoveFolder}
           />
         )}
       </div>

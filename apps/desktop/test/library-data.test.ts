@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   buildFolderTree,
+  folderMoveBlockReason,
   librarySelectionKey,
   toListReferences
 } from "@/features/library/library-data"
@@ -64,6 +65,34 @@ describe("library data mapping", () => {
       label: "About pages",
       count: 3
     })
+  })
+
+  it("blocks dropping a folder onto itself or a descendant", () => {
+    const grandchildId = FolderId.make("folder_grandchild")
+    const siblingId = FolderId.make("folder_sibling")
+    const tree = buildFolderTree([
+      storedFolder(rootId, null, "Web", "Web", 8),
+      storedFolder(childId, rootId, "About pages", "Web/About pages", 3),
+      storedFolder(
+        grandchildId,
+        childId,
+        "Heroes",
+        "Web/About pages/Heroes",
+        1
+      ),
+      storedFolder(siblingId, null, "Print", "Print", 2)
+    ])
+
+    expect(folderMoveBlockReason(tree, childId, childId)).toBe(
+      "A folder cannot be moved inside itself."
+    )
+    expect(folderMoveBlockReason(tree, rootId, grandchildId)).toBe(
+      "A folder cannot be moved inside itself."
+    )
+    expect(folderMoveBlockReason(tree, childId, siblingId)).toBeNull()
+    expect(
+      folderMoveBlockReason(tree, childId, FolderId.make("folder_missing"))
+    ).toBe("That folder cannot be moved there.")
   })
 
   it("maps each navigation kind to the shared reference query contract", () => {

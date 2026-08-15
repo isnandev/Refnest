@@ -7,10 +7,17 @@ import {
   Home,
   LoaderCircle
 } from "lucide-react"
+import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { WorkspaceBrowserState } from "./use-workspace-browser"
+
+const normalizeBrowsePath = (value: string) => {
+  const trimmed = value.trim()
+  return /^[A-Za-z]:$/.test(trimmed) ? `${trimmed}\\` : trimmed
+}
 
 export function WorkspaceFolderExplorer({
   state,
@@ -21,19 +28,39 @@ export function WorkspaceFolderExplorer({
   readonly listing: WorkspaceDirectoryListing | null
   readonly onBrowse: (path?: string) => void
 }) {
+  const [draftPath, setDraftPath] = useState(listing?.path ?? "")
   const retryPath = state.status === "failed" ? state.path : undefined
+
+  useEffect(() => {
+    if (listing !== null) setDraftPath(listing.path)
+  }, [listing])
+
+  const goToDraft = () => {
+    const next = normalizeBrowsePath(draftPath)
+    if (next.length === 0) return
+    onBrowse(next)
+  }
 
   return (
     <div className="flex min-h-0 flex-col gap-2">
-      <div className="flex items-end justify-between gap-3">
-        <div className="min-w-0">
-          <Label>Location</Label>
-          <p
-            className="mt-1 truncate font-mono text-caption text-muted-foreground"
-            title={listing?.path}
-          >
-            {listing?.path ?? "Loading your folders…"}
-          </p>
+      <div className="flex items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <Label htmlFor="workspace-location">Location</Label>
+          <Input
+            id="workspace-location"
+            value={draftPath}
+            spellCheck={false}
+            autoComplete="off"
+            placeholder="D:\references"
+            aria-label="Folder path"
+            className="mt-1 font-mono"
+            onChange={(event) => setDraftPath(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return
+              event.preventDefault()
+              goToDraft()
+            }}
+          />
         </div>
 
         <div className="flex shrink-0 items-center gap-1">

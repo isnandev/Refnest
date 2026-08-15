@@ -106,6 +106,7 @@ export default function App() {
           settingsReady={settingsReady}
           theme={theme.theme}
           aiEnabled={aiEnabled}
+          desktopNotifications={settings.desktopNotifications}
           libraryName={environments.active?.name ?? null}
           view={settings.libraryView}
           onViewChange={persistLibraryView}

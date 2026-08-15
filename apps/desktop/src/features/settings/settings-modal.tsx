@@ -8,6 +8,7 @@ import {
 } from "@refnest/contracts"
 import {
   Accessibility,
+  Bell,
   Cable,
   Check,
   Clapperboard,
@@ -230,6 +231,25 @@ export function SettingsModal({
                       )
                     })}
                   </div>
+                </SettingRow>
+
+                <SettingRow
+                  icon={Bell}
+                  title="Desktop notifications"
+                  description="Show an OS toast when a capture or import finishes in the background. Clicking the toast brings RefNest forward."
+                  separated
+                >
+                  <SettingToggle
+                    checked={settings.desktopNotifications}
+                    label="Desktop notifications"
+                    onCheckedChange={(checked) =>
+                      onSettingChange(
+                        new UpdateDesktopSettings({
+                          desktopNotifications: checked
+                        })
+                      )
+                    }
+                  />
                 </SettingRow>
 
                 <SettingRow

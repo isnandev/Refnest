@@ -3,8 +3,8 @@ import type {
   LibraryViewPreferences,
   ReferenceId
 } from "@refnest/contracts"
-import { CircleAlert, RefreshCw, SearchX } from "lucide-react"
-import { useMemo, useRef, type CSSProperties } from "react"
+import { CircleAlert, LoaderCircle, RefreshCw, SearchX } from "lucide-react"
+import { memo, useEffect, useMemo, useRef, type CSSProperties } from "react"
 
 import { Button } from "@/components/ui/button"
 import { packJustifiedRows } from "./justified-rows"
@@ -14,9 +14,23 @@ import { useElementWidth } from "./use-element-width"
 
 const GAP_PX = 12
 const PADDING_PX = 12
+const LOAD_MORE_ROOT_MARGIN = "400px"
+const GRID_FRAME: CSSProperties = { aspectRatio: 1 }
+const masonryFrames = new Map<number, CSSProperties>()
+
+const masonryFrame = (item: InspirationReference): CSSProperties => {
+  const ratio = referenceAspectRatio(item)
+  const cached = masonryFrames.get(ratio)
+  if (cached !== undefined) return cached
+  const style = { aspectRatio: ratio }
+  masonryFrames.set(ratio, style)
+  return style
+}
 
 type MasonryStyle = CSSProperties & { "--reference-columns": number }
 type GridStyle = CSSProperties & { "--reference-columns": number }
+
+const GridCard = memo(ReferenceCard)
 
 export function ReferenceGrid({
   items,
@@ -27,10 +41,13 @@ export function ReferenceGrid({
   imageUrls,
   failedImages,
   loading,
+  loadingMore = false,
+  hasMore = false,
   error,
   hasActiveFilters = false,
   onRetry,
   onClearFilters,
+  onLoadMore,
   onOpen,
   onToggleSelect,
   onExtendSelect
@@ -43,20 +60,44 @@ export function ReferenceGrid({
   readonly imageUrls: ReadonlyMap<ReferenceId, string>
   readonly failedImages: ReadonlySet<ReferenceId>
   readonly loading: boolean
+  readonly loadingMore?: boolean
+  readonly hasMore?: boolean
   readonly error: string | null
   readonly hasActiveFilters?: boolean
   readonly onRetry: () => void
   readonly onClearFilters?: () => void
+  readonly onLoadMore?: () => void
   readonly onOpen: (item: InspirationReference) => void
   readonly onToggleSelect: (item: InspirationReference) => void
   readonly onExtendSelect: (item: InspirationReference) => void
 }) {
   const container = useRef<HTMLDivElement>(null)
+  const sentinel = useRef<HTMLDivElement>(null)
   const width = useElementWidth(container)
   const display: ReferenceCardDisplay = view
   const columnStyle: MasonryStyle & GridStyle = {
     "--reference-columns": view.columns
   }
+  const canLoadMore = hasMore && onLoadMore !== undefined && !loading
+
+  useEffect(() => {
+    if (!canLoadMore || loadingMore) return
+    const target = sentinel.current
+    const root = container.current?.closest(".library-grid-scroll")
+    if (target === null) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) onLoadMore()
+      },
+      {
+        root: root instanceof Element ? root : null,
+        rootMargin: LOAD_MORE_ROOT_MARGIN
+      }
+    )
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [canLoadMore, items.length, loadingMore, onLoadMore])
 
   /**
    * The column count sets the row height too, so zooming behaves the same in
@@ -82,7 +123,7 @@ export function ReferenceGrid({
   }, [items, view.columns, view.layout, width])
 
   const card = (item: InspirationReference, index: number, frameStyle: CSSProperties) => (
-    <ReferenceCard
+    <GridCard
       key={item.id}
       item={item}
       imageUrl={imageUrls.get(item.id)}
@@ -157,12 +198,42 @@ export function ReferenceGrid({
   }
 
   const label = `${items.length} reference thumbnails`
+  const footer = (
+    <>
+      {error !== null && (
+        <div className="flex flex-col items-center gap-2 px-6 py-4 text-center">
+          <p className="text-body-sm text-muted-foreground">{error}</p>
+          <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+            <RefreshCw aria-hidden="true" />
+            Try again
+          </Button>
+        </div>
+      )}
+      {canLoadMore && (
+        <div
+          ref={sentinel}
+          className="flex items-center justify-center py-6"
+          aria-hidden={!loadingMore}
+        >
+          {loadingMore && (
+            <p
+              className="flex items-center gap-2 text-body-sm text-muted-foreground"
+              aria-live="polite"
+            >
+              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+              Loading more references
+            </p>
+          )}
+        </div>
+      )}
+    </>
+  )
 
   if (view.layout === "justified") {
     let rendered = -1
 
     return (
-      <div ref={container} className="p-3" aria-label={label} aria-busy={loading}>
+      <div ref={container} className="p-3" aria-label={label} aria-busy={loading || loadingMore}>
         {rows.map((row, rowIndex) => (
           <div
             key={rowIndex}
@@ -173,43 +244,33 @@ export function ReferenceGrid({
               rendered += 1
               return (
                 <div key={tile.item.key} style={{ width: tile.width }}>
-                  {card(tile.item.reference, rendered, {
-                    height: tile.height
-                  })}
+                  {card(tile.item.reference, rendered, { height: tile.height })}
                 </div>
               )
             })}
           </div>
         ))}
-      </div>
-    )
-  }
-
-  if (view.layout === "grid") {
-    return (
-      <div
-        ref={container}
-        className="reference-grid p-3"
-        style={columnStyle}
-        aria-label={label}
-        aria-busy={loading}
-      >
-        {items.map((item, index) => card(item, index, { aspectRatio: 1 }))}
+        {footer}
       </div>
     )
   }
 
   return (
-    <div
-      ref={container}
-      className="reference-masonry p-3"
-      style={columnStyle}
-      aria-label={label}
-      aria-busy={loading}
-    >
-      {items.map((item, index) =>
-        card(item, index, { aspectRatio: referenceAspectRatio(item) })
-      )}
+    <div aria-label={label} aria-busy={loading || loadingMore}>
+      <div
+        ref={container}
+        className={view.layout === "grid" ? "reference-grid p-3" : "reference-masonry p-3"}
+        style={columnStyle}
+      >
+        {items.map((item, index) =>
+          card(
+            item,
+            index,
+            view.layout === "grid" ? GRID_FRAME : masonryFrame(item)
+          )
+        )}
+      </div>
+      {footer}
     </div>
   )
 }

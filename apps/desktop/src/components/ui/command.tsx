@@ -32,12 +32,12 @@ function CommandDialog({
 
 function CommandInput({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
-    <div className="flex h-12 shrink-0 items-center gap-3 border-b px-4" data-slot="command-input-wrapper">
+    <div className="flex h-12 w-full min-w-0 shrink-0 items-center gap-3 border-b px-4" data-slot="command-input-wrapper">
       <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <CommandPrimitive.Input
         data-slot="command-input"
         className={cn(
-          "h-full min-w-0 flex-1 bg-transparent text-body-md outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+          "h-full w-full min-w-0 flex-1 bg-transparent text-body-md outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
         {...props}

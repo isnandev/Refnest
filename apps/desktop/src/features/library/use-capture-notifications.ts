@@ -6,6 +6,7 @@ import {
   isActiveCapture,
   settledCaptureJobs
 } from "./capture-job"
+import { notifyCaptureSettled } from "./os-capture-notification"
 
 const SUCCESS_DISMISS_MS = 6_000
 const MAX_VISIBLE = 4
@@ -16,7 +17,10 @@ const MAX_VISIBLE = 4
  * its outcome. Jobs already finished at mount stay silent — a result the user
  * never waited for is history, not news.
  */
-export const useCaptureNotifications = (jobs: ReadonlyArray<CaptureJob>) => {
+export const useCaptureNotifications = (
+  jobs: ReadonlyArray<CaptureJob>,
+  desktopNotifications = true
+) => {
   const [settledIds, setSettledIds] = useState<ReadonlyArray<CaptureJobId>>([])
   const [dismissed, setDismissed] = useState<ReadonlySet<CaptureJobId>>(
     () => new Set()
@@ -44,6 +48,8 @@ export const useCaptureNotifications = (jobs: ReadonlyArray<CaptureJob>) => {
     const settled = settledCaptureJobs(previous, jobs)
     if (settled.length === 0) return
 
+    for (const job of settled) void notifyCaptureSettled(job, desktopNotifications)
+
     setSettledIds((current) => [
       ...current,
       ...settled.map((job) => job.id).filter((id) => !current.includes(id))
@@ -54,7 +60,7 @@ export const useCaptureNotifications = (jobs: ReadonlyArray<CaptureJob>) => {
       for (const job of settled) next.delete(job.id)
       return next
     })
-  }, [jobs])
+  }, [desktopNotifications, jobs])
 
   useEffect(() => {
     for (const id of settledIds) {

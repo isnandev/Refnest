@@ -1,6 +1,7 @@
 import {
   CreateLibraryFolder,
   UpdateInspirationReference,
+  UpdateLibraryFolder,
   type FolderId,
   type InspirationReference,
   type LibraryFolder,
@@ -93,6 +94,12 @@ const createFolder = (payload: CreateLibraryFolder) =>
   Effect.gen(function* () {
     const api = yield* ApiClient
     return yield* api.folders.create({ payload })
+  }).pipe(Effect.mapError(toApiFailure))
+
+const updateFolder = (id: FolderId, payload: UpdateLibraryFolder) =>
+  Effect.gen(function* () {
+    const api = yield* ApiClient
+    return yield* api.folders.update({ path: { id }, payload })
   }).pipe(Effect.mapError(toApiFailure))
 
 const updateReference = (
@@ -265,6 +272,19 @@ export const useLibraryData = (
     [refreshNavigation, runMutation, workspaceId]
   )
 
+  const move = useCallback(
+    async (id: FolderId, parentId: FolderId) => {
+      const result = await runMutation(
+        updateFolder(id, new UpdateLibraryFolder({ parentId }))
+      )
+      if (!result.ok) return null
+
+      await Promise.all([refreshNavigation(), refreshReferences()])
+      return result.value
+    },
+    [refreshNavigation, refreshReferences, runMutation]
+  )
+
   const replaceReference = useCallback((reference: InspirationReference) => {
     setReferenceState((current) => ({
       ...current,
@@ -417,6 +437,7 @@ export const useLibraryData = (
     refreshReferences,
     loadReference,
     createFolder: create,
+    moveFolder: move,
     updateReference: update,
     updateReferences: updateMany,
     updateEachReference: updateEach,

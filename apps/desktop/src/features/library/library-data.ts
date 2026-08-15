@@ -112,6 +112,29 @@ export const flattenLibraryFolders = (
     ...flattenLibraryFolders(folder.children ?? [])
   ])
 
+export const libraryFolderId = (folder: LibraryFolder): FolderId | null =>
+  folder.selection.kind === "folder" ? folder.selection.id : null
+
+/** Why this drop is illegal, or null when the folder can move under the target. */
+export const folderMoveBlockReason = (
+  folders: readonly LibraryFolder[],
+  sourceId: FolderId,
+  targetId: FolderId
+): string | null => {
+  if (sourceId === targetId) return "A folder cannot be moved inside itself."
+
+  const source = findFolder(folders, librarySelectionKey({ kind: "folder", id: sourceId }))
+  const target = findFolder(folders, librarySelectionKey({ kind: "folder", id: targetId }))
+  if (source === undefined || target === undefined) {
+    return "That folder cannot be moved there."
+  }
+  if (findFolder(source.children ?? [], target.key) !== undefined) {
+    return "A folder cannot be moved inside itself."
+  }
+
+  return null
+}
+
 const findFolder = (
   folders: readonly LibraryFolder[],
   key: string

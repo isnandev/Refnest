@@ -11,12 +11,17 @@ import { useCaptureNotifications } from "./use-capture-notifications"
 /** Live capture progress and its outcome, stacked out of the way of the grid. */
 export function CaptureToaster({
   jobs,
+  desktopNotifications = true,
   onShowReference
 }: {
   readonly jobs: ReadonlyArray<CaptureJob>
+  readonly desktopNotifications?: boolean
   readonly onShowReference: (id: ReferenceId) => void
 }) {
-  const { notifications, dismiss } = useCaptureNotifications(jobs)
+  const { notifications, dismiss } = useCaptureNotifications(
+    jobs,
+    desktopNotifications
+  )
 
   if (notifications.length === 0) return null
 

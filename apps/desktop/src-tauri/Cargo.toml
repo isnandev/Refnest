@@ -1,6 +1,6 @@
 [package]
 name = "desktop"
-version = "0.7.0"
+version = "0.8.0"
 description = "Tauri shell for the Bun/Effect sidecar"
 authors = ["you"]
 edition = "2021"
@@ -30,3 +30,5 @@ serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json"] }
 percent-encoding = "2"
 tokio = { version = "1", features = ["sync", "time"] }
+# Local OS toasts. The Tauri notification plugin cannot focus the window on click.
+notify-rust = "4"

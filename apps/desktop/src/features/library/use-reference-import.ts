@@ -15,7 +15,9 @@ import { isTauriRuntime } from "@/features/window/tauri-runtime"
 import { ApiClient } from "@/lib/api/client"
 import { ApiFailure, toApiFailure } from "@/lib/api/errors"
 import { appRuntime } from "@/lib/runtime"
+import { importNotificationCopy } from "./capture-job"
 import { IMPORTABLE_EXTENSIONS, importablePaths } from "./importable-files"
+import { notifyDesktop } from "./os-capture-notification"
 
 const pickReferenceFiles = Effect.tryPromise({
   try: () => {
@@ -112,11 +114,13 @@ const importPastedContent = (
 export const useReferenceImport = ({
   workspaceId,
   canImport,
+  desktopNotifications = true,
   onImported
 }: {
   readonly workspaceId: WorkspaceId | null
   /** Import is host-only, so a remote library refuses rather than 404s. */
   readonly canImport: boolean
+  readonly desktopNotifications?: boolean
   readonly onImported: (references: ReadonlyArray<InspirationReference>) => void
 }) => {
   const [pending, setPending] = useState(false)
@@ -164,6 +168,15 @@ export const useReferenceImport = ({
             `${importedCount > 0 ? `Imported ${importedCount}; ` : ""}${failureCount} ${failureCount === 1 ? "file" : "files"} could not be imported. ${result.right.failures[0]?.message ?? ""}`.trim()
           )
         }
+        if (result.right.imported.length > 0 || result.right.failures.length > 0) {
+          void notifyDesktop(
+            importNotificationCopy(
+              result.right.imported.length,
+              result.right.failures.length
+            ),
+            desktopNotifications
+          )
+        }
 
         return result.right.imported
       } catch (cause) {
@@ -175,7 +188,7 @@ export const useReferenceImport = ({
         setPendingCount(0)
       }
     },
-    []
+    [desktopNotifications]
   )
 
   /** Says why nothing happened, rather than letting a refusal look like a bug. */

@@ -18,6 +18,7 @@ import {
   buildSmartFolders,
   folderCount,
   folderLabel,
+  librarySelectionKey,
   type LibrarySelection
 } from "./library-data"
 import {
@@ -43,6 +44,7 @@ import { useReferenceAssets } from "./use-reference-assets"
 import { useReferenceDrop } from "./use-reference-drop"
 import { useReferenceExport } from "./use-reference-export"
 import { useReferenceImport } from "./use-reference-import"
+import { useLibraryWindow } from "./use-library-window"
 import { useReferenceSelection } from "./use-reference-selection"
 import { usePasteToLibrary } from "./use-paste-to-library"
 
@@ -60,6 +62,7 @@ export const useReferenceLibrary = ({
   workspaceId,
   canImport,
   aiEnabled,
+  desktopNotifications,
   view,
   onViewChange
 }: {
@@ -67,6 +70,7 @@ export const useReferenceLibrary = ({
   /** Local import is host-only, so a remote library can neither pick nor drop. */
   readonly canImport: boolean
   readonly aiEnabled: boolean
+  readonly desktopNotifications: boolean
   readonly view: LibraryViewPreferences
   readonly onViewChange: (patch: LibraryViewPreferencesPatch) => void
 }) => {
@@ -102,6 +106,7 @@ export const useReferenceLibrary = ({
   const referenceImport = useReferenceImport({
     workspaceId,
     canImport,
+    desktopNotifications,
     onImported: () => {
       void library.refresh()
     }
@@ -185,6 +190,28 @@ export const useReferenceLibrary = ({
     () => applyLibraryFilters(library.references.references, filters),
     [filters, library.references.references]
   )
+  const windowResetKey = useMemo(
+    () =>
+      [
+        workspaceId ?? "",
+        librarySelectionKey(activeSelection),
+        debouncedQuery,
+        view.sort,
+        view.sortDirection,
+        view.showSubfolderContents ? "1" : "0",
+        JSON.stringify(filters)
+      ].join("|"),
+    [
+      activeSelection,
+      debouncedQuery,
+      filters,
+      view.showSubfolderContents,
+      view.sort,
+      view.sortDirection,
+      workspaceId
+    ]
+  )
+  const itemWindow = useLibraryWindow(visibleItems, windowResetKey)
   const activeFilterCount = countActiveFilters(filters)
   const orderedIds = useMemo(
     () => visibleItems.map((item) => item.id),
@@ -194,6 +221,14 @@ export const useReferenceLibrary = ({
   const selectedItems = useMemo(
     () => visibleItems.filter((item) => selection.ids.has(item.id)),
     [selection.ids, visibleItems]
+  )
+  const toggleSelect = useCallback(
+    (item: InspirationReference) => selection.toggle(item.id),
+    [selection.toggle]
+  )
+  const extendSelect = useCallback(
+    (item: InspirationReference) => selection.extendTo(item.id),
+    [selection.extendTo]
   )
   const currentFolderLabel = folderLabel(
     activeSelection,
@@ -211,12 +246,12 @@ export const useReferenceLibrary = ({
   const assetReferences = useMemo(() => {
     if (
       activeItem === null ||
-      visibleItems.some((item) => item.id === activeItem.id)
+      itemWindow.items.some((item) => item.id === activeItem.id)
     ) {
-      return visibleItems
+      return itemWindow.items
     }
-    return [...visibleItems, activeItem]
-  }, [activeItem, visibleItems])
+    return [...itemWindow.items, activeItem]
+  }, [activeItem, itemWindow.items])
   const assets = useReferenceAssets(
     workspaceId,
     assetReferences,
@@ -476,6 +511,12 @@ export const useReferenceLibrary = ({
     collectionFolders,
     smartFolders,
     visibleItems,
+    renderedItems: itemWindow.items,
+    hasMoreItems: itemWindow.hasMore,
+    loadingMoreItems: itemWindow.loadingMore,
+    loadMoreItems: itemWindow.loadMore,
+    toggleSelect,
+    extendSelect,
     currentFolderLabel,
     currentFolderCount,
     assets,

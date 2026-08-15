@@ -159,6 +159,7 @@ export class DesktopSettings extends Schema.Class<DesktopSettings>(
   autoCollapseSidebar: Schema.Boolean,
   autoConvertImports: Schema.Boolean,
   videoDownloadResolution: VideoDownloadResolution,
+  desktopNotifications: Schema.Boolean,
   reduceMotion: Schema.Boolean,
   sidebarBackgroundOpacity: SidebarBackgroundOpacity,
   sidebarWidth: SidebarWidth,
@@ -177,6 +178,7 @@ export class UpdateDesktopSettings extends Schema.Class<UpdateDesktopSettings>(
   autoCollapseSidebar: Schema.optional(Schema.Boolean),
   autoConvertImports: Schema.optional(Schema.Boolean),
   videoDownloadResolution: Schema.optional(VideoDownloadResolution),
+  desktopNotifications: Schema.optional(Schema.Boolean),
   reduceMotion: Schema.optional(Schema.Boolean),
   sidebarBackgroundOpacity: Schema.optional(SidebarBackgroundOpacity),
   sidebarWidth: Schema.optional(SidebarWidth),
@@ -209,6 +211,7 @@ export const DEFAULT_DESKTOP_SETTINGS = new DesktopSettings({
   autoCollapseSidebar: true,
   autoConvertImports: true,
   videoDownloadResolution: 1080,
+  desktopNotifications: true,
   reduceMotion: false,
   sidebarBackgroundOpacity: 60,
   sidebarWidth: 272,
@@ -245,6 +248,8 @@ export const mergeDesktopSettings = (
     autoConvertImports: patch.autoConvertImports ?? current.autoConvertImports,
     videoDownloadResolution:
       patch.videoDownloadResolution ?? current.videoDownloadResolution,
+    desktopNotifications:
+      patch.desktopNotifications ?? current.desktopNotifications,
     reduceMotion: patch.reduceMotion ?? current.reduceMotion,
     sidebarBackgroundOpacity:
       patch.sidebarBackgroundOpacity ?? current.sidebarBackgroundOpacity,
@@ -274,6 +279,7 @@ const StoredDesktopSettings = Schema.Struct({
   autoCollapseSidebar: Schema.optional(Schema.Boolean),
   autoConvertImports: Schema.optional(Schema.Boolean),
   videoDownloadResolution: Schema.optional(VideoDownloadResolution),
+  desktopNotifications: Schema.optional(Schema.Boolean),
   reduceMotion: Schema.optional(Schema.Boolean),
   sidebarBackgroundOpacity: Schema.optional(SidebarBackgroundOpacity),
   sidebarWidth: Schema.optional(SidebarWidth),
@@ -317,6 +323,8 @@ export const decodeStoredDesktopSettings = (
       document.autoConvertImports ?? fallback.autoConvertImports,
     videoDownloadResolution:
       document.videoDownloadResolution ?? fallback.videoDownloadResolution,
+    desktopNotifications:
+      document.desktopNotifications ?? fallback.desktopNotifications,
     reduceMotion: document.reduceMotion ?? fallback.reduceMotion,
     sidebarBackgroundOpacity:
       document.sidebarBackgroundOpacity ?? fallback.sidebarBackgroundOpacity,

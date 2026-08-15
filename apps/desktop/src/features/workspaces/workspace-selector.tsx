@@ -37,7 +37,7 @@ export function WorkspaceSelector({
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-sm px-1.5 text-left transition-colors hover:bg-surface-hover/80"
+          className="flex h-9 w-full min-w-0 flex-1 items-center gap-2 rounded-sm px-1.5 text-left transition-colors hover:bg-surface-hover/80"
           aria-label={`Select workspace. Current workspace: ${label}`}
         >
           <span
@@ -58,7 +58,7 @@ export function WorkspaceSelector({
         <Popover.Content
           align="start"
           sideOffset={6}
-          className="z-40 w-[var(--radix-popover-trigger-width)] min-w-[220px] max-w-[320px] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-[0_12px_32px_rgba(0,0,0,0.10)] outline-none"
+          className="z-40 w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-[0_12px_32px_rgba(0,0,0,0.10)] outline-none"
         >
           <Command label="Select a workspace">
             <CommandInput placeholder="Find a workspace…" />

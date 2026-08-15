@@ -57,7 +57,8 @@ pub fn run() {
             commands::api_request_local,
             commands::activate_environment,
             commands::sidecar_ready,
-            commands::mcp_connection_info
+            commands::mcp_connection_info,
+            commands::show_desktop_notification
         ])
         .build(tauri::generate_context!())
         .expect("error while building the tauri application")

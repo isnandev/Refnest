@@ -43,6 +43,7 @@ export function ReferenceLibrary({
   settingsReady,
   theme,
   aiEnabled,
+  desktopNotifications,
   libraryName,
   view,
   onViewChange,
@@ -60,6 +61,7 @@ export function ReferenceLibrary({
   readonly settingsReady: boolean
   readonly theme: Theme
   readonly aiEnabled: boolean
+  readonly desktopNotifications: boolean
   readonly libraryName: string | null
   readonly view: LibraryViewPreferences
   readonly onViewChange: (patch: LibraryViewPreferencesPatch) => void
@@ -127,6 +129,12 @@ export function ReferenceLibrary({
     collectionFolders,
     smartFolders,
     visibleItems,
+    renderedItems,
+    hasMoreItems,
+    loadingMoreItems,
+    loadMoreItems,
+    toggleSelect,
+    extendSelect,
     currentFolderLabel,
     currentFolderCount,
     assets,
@@ -166,6 +174,7 @@ export function ReferenceLibrary({
     workspaceId,
     canImport: onLocalLibrary,
     aiEnabled,
+    desktopNotifications,
     view,
     onViewChange
   })
@@ -240,6 +249,9 @@ export function ReferenceLibrary({
             onOpenQuickSave={openQuickSave}
             onImportFiles={importFiles}
             onOpenCreateFolder={openCreateFolder}
+            onMoveFolder={async (folderId, parentId) =>
+              (await library.moveFolder(folderId, parentId)) !== null
+            }
             onOpenConverter={onOpenConverter}
             onOpenSettings={onOpenSettings}
             onRetryNavigation={() => void library.refreshNavigation()}
@@ -337,7 +349,7 @@ export function ReferenceLibrary({
                 inert={viewerOpen}
               >
                 <ReferenceGrid
-                  items={visibleItems}
+                  items={renderedItems}
                   activeId={activeItem?.id ?? null}
                   selectedIds={selection.ids}
                   selectionMode={selection.active}
@@ -348,6 +360,8 @@ export function ReferenceLibrary({
                     workspaceState.status === "loading" ||
                     library.references.status === "loading"
                   }
+                  loadingMore={loadingMoreItems}
+                  hasMore={hasMoreItems}
                   error={referencesError}
                   hasActiveFilters={
                     activeFilterCount > 0 || searchQuery.trim().length > 0
@@ -357,9 +371,10 @@ export function ReferenceLibrary({
                     setSearchQuery("")
                     clearFilters()
                   }}
+                  onLoadMore={loadMoreItems}
                   onOpen={openReference}
-                  onToggleSelect={(item) => selection.toggle(item.id)}
-                  onExtendSelect={(item) => selection.extendTo(item.id)}
+                  onToggleSelect={toggleSelect}
+                  onExtendSelect={extendSelect}
                 />
 
                 <p className="sr-only" aria-live="polite">
@@ -514,6 +529,7 @@ export function ReferenceLibrary({
 
       <CaptureToaster
         jobs={quickSave.state.jobs}
+        desktopNotifications={desktopNotifications}
         onShowReference={(id) => void showReferenceById(id)}
       />
 

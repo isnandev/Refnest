@@ -16,6 +16,7 @@ export type AppSettings = Pick<
   | "autoCollapseSidebar"
   | "autoConvertImports"
   | "videoDownloadResolution"
+  | "desktopNotifications"
   | "reduceMotion"
   | "sidebarBackgroundOpacity"
 >
@@ -185,6 +186,7 @@ export const useAppSettings = () => {
         autoConvertImports: DEFAULT_DESKTOP_SETTINGS.autoConvertImports,
         videoDownloadResolution:
           DEFAULT_DESKTOP_SETTINGS.videoDownloadResolution,
+        desktopNotifications: DEFAULT_DESKTOP_SETTINGS.desktopNotifications,
         reduceMotion: DEFAULT_DESKTOP_SETTINGS.reduceMotion,
         sidebarBackgroundOpacity:
           DEFAULT_DESKTOP_SETTINGS.sidebarBackgroundOpacity

@@ -139,6 +139,7 @@ describe("stored settings migration", () => {
     expect(migrated.themePreference).toBe("light")
     expect(migrated.sidebarWidth).toBe(DEFAULT_DESKTOP_SETTINGS.sidebarWidth)
     expect(migrated.videoDownloadResolution).toBe(1080)
+    expect(migrated.desktopNotifications).toBe(true)
     expect(selectedWorkspaceId(migrated)).toBeNull()
   })
 
