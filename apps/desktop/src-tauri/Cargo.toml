@@ -1,6 +1,6 @@
 [package]
 name = "desktop"
-version = "0.8.0"
+version = "0.8.1"
 description = "Tauri shell for the Bun/Effect sidecar"
 authors = ["you"]
 edition = "2021"

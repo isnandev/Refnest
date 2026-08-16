@@ -268,7 +268,7 @@ const makeReferenceService = Effect.gen(function* () {
   `)
 
   const decodeRow = (row: ReferenceRow) =>
-    decodeStoredReference(row, appPaths.previewsDirectory).pipe(
+    decodeStoredReference(row).pipe(
       Effect.mapError(() =>
         operationFailure("read", "The stored reference metadata is invalid.")
       )

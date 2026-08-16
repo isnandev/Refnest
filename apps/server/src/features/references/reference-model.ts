@@ -14,7 +14,6 @@ import {
 } from "@refnest/contracts"
 import { Effect, Schema } from "effect"
 import { join } from "node:path"
-import { resolveContainedFile } from "../../persistence/path-policy"
 
 export type ReferenceRow = {
   readonly id: string
@@ -148,25 +147,9 @@ export type StoredReference = InspirationReference & {
 }
 
 export const decodeStoredReference = (
-  row: ReferenceRow,
-  previewsRoot: string
+  row: ReferenceRow
 ): Effect.Effect<StoredReference, Error> =>
   Effect.gen(function* () {
-    const asset = yield* Effect.try({
-      try: () =>
-        resolveContainedFile(
-          row.workspace_path,
-          join(row.workspace_path, ...row.asset_relative_path.split("/"))
-        ),
-      catch: () => new Error("The stored asset path is invalid or missing.")
-    })
-    const storedPreviewPath = row.preview_path
-    const preview = storedPreviewPath === null
-      ? null
-      : yield* Effect.try({
-          try: () => resolveContainedFile(previewsRoot, storedPreviewPath),
-          catch: () => new Error("The stored preview path is invalid or missing.")
-        })
     const id = ReferenceId.make(row.id)
     const workspaceId = WorkspaceId.make(row.workspace_id)
     const serializedCollections = yield* Effect.try({
@@ -176,6 +159,12 @@ export const decodeStoredReference = (
       }),
       catch: () => new Error("The stored reference collections are invalid.")
     })
+    const assetPath = join(
+      row.workspace_path,
+      ...row.asset_relative_path.split("/")
+    )
+    const previewPath = row.preview_path
+
     const publicReference = yield* Schema.decodeUnknown(InspirationReference)({
       id,
       workspaceId,
@@ -187,7 +176,7 @@ export const decodeStoredReference = (
       kind: row.kind,
       assetUrl: assetUrl(workspaceId, id, "asset"),
       previewUrl:
-        preview === null ? null : assetUrl(workspaceId, id, "preview"),
+        previewPath === null ? null : assetUrl(workspaceId, id, "preview"),
       mimeType: row.mime_type,
       width: row.width,
       height: row.height,
@@ -208,8 +197,8 @@ export const decodeStoredReference = (
     )
 
     return Object.assign(publicReference, {
-      assetPath: asset.path,
-      previewPath: preview?.path ?? null
+      assetPath,
+      previewPath
     })
   })
 

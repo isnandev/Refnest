@@ -168,7 +168,7 @@ describe("library presentation mapping", () => {
 
   it("formats stored dimensions and bounds extreme capture ratios", () => {
     expect(formatDimensions({ width: 1_440, height: 6_000 })).toBe(
-      "1,440 × 6,000"
+      `${(1_440).toLocaleString()} × ${(6_000).toLocaleString()}`
     )
     expect(formatFileSize(3_800_000)).toBe("3.80 MB")
   })
